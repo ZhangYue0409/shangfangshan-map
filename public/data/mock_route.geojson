@@ -1,0 +1,18 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "测试路线" },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [115.9, 39.7, 100],
+          [115.92, 39.72, 120],
+          [115.94, 39.71, 150],
+          [115.93, 39.69, 130]
+        ]
+      }
+    }
+  ]
+}
