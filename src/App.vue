@@ -5,24 +5,78 @@
 <script setup>
 import { onMounted } from 'vue'
 import * as Cesium from 'cesium'
-// 重要！把你刚写的 route.js 文件引用进来
-import { loadRoute } from './route.js' 
 
 onMounted(async () => {
-  // 1. 粘贴你之前复制好的 Cesium Token（记得换回你自己的！）
-  Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiZGE3MjZkNS0xMWI4LTRkZDgtOWM3Mi0xM2IzOWY3YzVkZWQiLCJpZCI6NDYwMzg2LCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODQ5NzM3MDd9.s-BE-b8z00JBBx7UQHEfqwHsuG2gGET2FOCu-A7bF2o'
+  // 1. 账号 A 的 Token（原队友的 Token，用于加载地形 5091409 等）
+  const tokenA = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiZGE3MjZkNS0xMWI4LTRkZDgtOWM3Mi0xM2IzOWY3YzVkZWQiLCJpZCI6NDYwMzg2LCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODQ5NzM3MDd9.s-BE-b8z00JBBx7UQHEfqwHsuG2gGET2FOCu-A7bF2o'
+  
+  // 2. 账号 B 的 Token（你自己的 Token，用于加载 3DTiles 5091450）
+  const tokenB = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJkODliZDAyMi1mNzY2LTQwMmYtOTNjNi1lOGY5OGYzMjQ4YmUiLCJpZCI6NDYwNjY1LCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODUwNjg5OTJ9.snV-HHPbKFHGnIL0nWyCtIklA8JEi9mtmVXSxxxzZKU'
 
-  // 2. 创建三维地球
+  // 默认全局 Token 设置为账号 A
+  Cesium.Ion.defaultAccessToken = tokenA
+
+  // 使用账号 A 的 Token 加载地形
+  const terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(5091409, {
+    accessToken: tokenA
+  })
+
   const viewer = new Cesium.Viewer('cesium-container', {
     baseLayerPicker: false,
     geocoder: false,
     timeline: false,
     animation: false,
     sceneModePicker: false,
+    terrainProvider: terrainProvider
   })
 
-  // 3. 调用你刚写的画路线功能！
-  await loadRoute(viewer)
+  // 山体夸张
+  viewer.scene.globe.verticalExaggeration = 2.5
+
+  // 加载立体建筑（可选）
+  try {
+    const buildings = await Cesium.createOsmBuildingsAsync()
+    viewer.scene.primitives.add(buildings)
+  } catch (e) {
+    console.warn('建筑加载失败', e)
+  }
+
+  // 🎯 使用账号 B 的 Token 加载你上传的 3DTiles 倾斜摄影模型 (Asset ID: 5091450)
+  try {
+    const tileset = await Cesium.Cesium3DTileset.fromIonAssetId(5091450, {
+      accessToken: tokenB // 👈 关键点：这里显式传入你的 Token
+    })
+    viewer.scene.primitives.add(tileset)
+    
+    // 自动定位视角到你的 3DTiles 模型
+    await viewer.zoomTo(tileset)
+  } catch (error) {
+    console.error('3DTiles 模型加载失败:', error)
+    
+    // 加载失败时的保底视角
+    viewer.camera.setView({
+      destination: Cesium.Cartesian3.fromDegrees(115.2, 39, 30),
+      orientation: {
+        pitch: -30,
+        heading: 0,
+        roll: 0
+      }
+    })
+  }
+
+  // 位置标签
+  viewer.entities.add({
+    position: Cesium.Cartesian3.fromDegrees(115.9, 39.7, 300),
+    label: {
+      text: '上方山',
+      font: '20px sans-serif',
+      fillColor: Cesium.Color.YELLOW,
+      outlineColor: Cesium.Color.BLACK,
+      outlineWidth: 2
+    }
+  })
+
+  window.viewer = viewer
 })
 </script>
 
