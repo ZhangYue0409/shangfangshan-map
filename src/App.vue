@@ -90,6 +90,22 @@ onMounted(async () => {
 
   // 🎯 3. 加载彩色登山路线
   await loadRoute(viewer)
+  // 🎯 4. 加载 GPX 轨迹
+try {
+  const gpxDataSource = await Cesium.GpxDataSource.load(
+    '/data/track.gpx',   // 替换为实际文件名
+    {
+      clampToGround: true,
+      trackColor: Cesium.Color.RED,
+      routeColor: Cesium.Color.BLUE
+    }
+  );
+  viewer.dataSources.add(gpxDataSource);
+  await viewer.zoomTo(gpxDataSource.entities);
+  console.log('✅ GPX 轨迹加载成功');
+} catch (error) {
+  console.error('❌ GPX 轨迹加载失败:', error);
+}
 
   window.viewer = viewer
 })
