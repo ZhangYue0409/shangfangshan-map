@@ -70,7 +70,11 @@ viewer.camera.maximumZoomDistance = 2000
 
   // 位置标签
   viewer.entities.add({
+<<<<<<< HEAD
     position: Cesium.Cartesian3.fromDegrees(115.8171,39.6698, 300),
+=======
+    position: Cesium.Cartesian3.fromDegrees(115.8161, 39.6638, 179),
+>>>>>>> 90beacb81cc21e1379fb59609d179151a60c1822
     allowPicking: false,
     label: {
       text: '上方山',
