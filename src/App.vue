@@ -31,6 +31,15 @@ onMounted(async () => {
     baseLayer: Cesium.ImageryLayer.fromWorldImagery()
   })
 
+  // ---------- 新增：立即定位到上方山，不显示地球 ----------
+viewer.camera.setView({
+  destination: Cesium.Cartesian3.fromDegrees(115.8158, 39.6638, 500),
+  orientation: { pitch: -45, heading: 0, roll: 0 }
+})
+// 限制最大缩放距离（可选）
+viewer.camera.maximumZoomDistance = 2000
+// -----------------------------------------------------
+
   viewer.scene.globe.depthTestAgainstTerrain = true
   viewer.scene.screenSpaceCameraController.enableCollisionDetection = true
   viewer.scene.globe.verticalExaggeration = 2.5
@@ -61,11 +70,11 @@ onMounted(async () => {
 
   // 位置标签
   viewer.entities.add({
-    position: Cesium.Cartesian3.fromDegrees(115.9, 39.7, 300),
+    position: Cesium.Cartesian3.fromDegrees(115.8171,39.6698, 300),
     allowPicking: false,
     label: {
       text: '上方山',
-      font: '20px sans-serif',
+      font: '30px sans-serif',
       fillColor: Cesium.Color.YELLOW,
       outlineColor: Cesium.Color.BLACK,
       outlineWidth: 2
@@ -75,8 +84,6 @@ onMounted(async () => {
   // 初始化 POI 交互
   await initInteraction(viewer)
 
-  // 加载彩色路线（GeoJSON）
-  await loadRoute(viewer)
 
   // ========== 加载 GPX 轨迹（蓝色 + 加宽至 12） ==========
   try {
