@@ -27,6 +27,15 @@ onMounted(async () => {
     terrainProvider: terrainProvider,
     baseLayer: Cesium.ImageryLayer.fromWorldImagery()
   })
+  // 直接定位到上方山（无动画）
+viewer.camera.setView({
+  destination: Cesium.Cartesian3.fromDegrees(115.8158, 39.6638, 500),
+  orientation: {
+    pitch: -45,
+    heading: 0,
+    roll: 0
+  }
+})
 
   viewer.scene.globe.depthTestAgainstTerrain = true
   viewer.scene.screenSpaceCameraController.enableCollisionDetection = true
@@ -54,7 +63,7 @@ onMounted(async () => {
     })
   }
 
-  // 位置标签（已清理冲突，保留你的坐标）
+  // 位置标签
   viewer.entities.add({
     position: Cesium.Cartesian3.fromDegrees(115.8171, 39.6698, 300),
     allowPicking: false,
