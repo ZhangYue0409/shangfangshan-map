@@ -10,7 +10,7 @@
       "properties": {
         "name": "上方山国家森林公园入口",
         "description": "上方山国家森林公园位于北京市房山区，以“九洞十二峰”著称，森林覆盖率高，是天然氧吧。",
-        "image_url": "https://images.unsplash.com/photo-1506744038136-46273834b3fb",
+        "image_urls": ["/images/spots/gate_1.jpg"],
         "avg_slope": "12.5°"
       }
     },
@@ -22,8 +22,12 @@
       },
       "properties": {
         "name": "兜率寺",
-        "description": "位于山上腹地古刹深处，环境幽静，是上方山历史文化的核心景点之一。",
-        "image_url": "https://images.unsplash.com/photo-1542051841857-5f90071e7989",
+        "description": "兜率寺位于北京市房山区韩村河镇上方山国家森林公园内，坐落于西华峰与莲花峰之间，是上方山七十二座古庵的中心，始建于隋末唐初，距今已有1400多年历史，辽、明、清历代多次重修。寺院坐落在山间台地上，山门为青砖石券结构，院内保存有辽代砖塔、明清古碑与十余株千年古柏。寺名取自佛教“兜率天宫”，过去山中各路茅庵的僧人常到此集会，是京西一处历史悠久的佛教圣地，也是整条登山古道的中途核心节点。",
+        "image_urls": [
+          "/images/spots/doushuaisi_1.jpg",
+          "/images/spots/doushuaisi_2.jpg",
+          "/images/spots/doushuaisi_3.jpg"
+        ],
         "avg_slope": "18.2°"
       }
     },
@@ -35,8 +39,11 @@
       },
       "properties": {
         "name": "青龙泉",
-        "description": "泉水晶莹澄澈，常年不竭，清凉甘冽，为上方山著名景观之一。",
-        "image_url": "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b",
+        "description": "青龙泉（别名圣泉）在兜率寺西侧崖下，是一处天然裂隙泉。泉水顺着石灰岩缝隙常年渗出，水质清冽，古时候寺里僧人就到此取水饮用。泉边林木茂密阴凉，有老松遮顶，旁边原有一座很小的圣泉庵，依崖而建，古时供路人歇脚。泉水流量不大，旱季也不会完全断流，是山上少有的稳定天然水源。",
+        "image_urls": [
+          "/images/spots/qinglongquan_1.jpg",
+          "/images/spots/qinglongquan_2.jpg"
+        ],
         "avg_slope": "31.0°"
       }
     },
@@ -48,8 +55,8 @@
       },
       "properties": {
         "name": "天坑",
-        "description": "我国北方罕见的喀斯特漏斗，坑口幽闭，底藏林木，地质奇观神秘莫测。",
-        "image_url": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23",
+        "description": "上方山天坑（别名旱龙潭），是我国北方首次发现的天坑，属于喀斯特崩塌漏斗地貌。坑深约71米，坑口直径约30米，坑底直径约61米，形状像一个倒立的喇叭。早年这里是一汪深水潭，叫旱龙潭；后来地下溶洞塌陷，潭水全部流入地下暗河，积水消失，就成了现在的天坑。坑壁布满钟乳石和崩塌碎石，坑底湿度大、光照特殊，长出一套和山上别处不同的植物，此处还曾发现过古生物化石，是珍贵的地质观察点。",
+        "image_urls": ["/images/spots/tiankeng.jpg"],
         "avg_slope": "24.8°"
       }
     }

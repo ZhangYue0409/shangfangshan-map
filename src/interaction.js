@@ -14,14 +14,50 @@ export async function initInteraction(viewer) {
     const poiDataSource = await Cesium.GeoJsonDataSource.load('/data/mock_poi.geojson')
     await viewer.dataSources.add(poiDataSource)
 
-    // 给 POI 设置基本外观（黄色小圆点/图标）
+    // 给 POI 设置基本外观，并为其格式化 description 支持多图显示
     poiDataSource.entities.values.forEach(entity => {
+      // ---- 外观设置 ----
       if (entity.point) {
         entity.point.pixelSize = 12
         entity.point.color = Cesium.Color.YELLOW
         entity.point.outlineColor = Cesium.Color.BLACK
         entity.point.outlineWidth = 2
         entity.point.heightReference = Cesium.HeightReference.CLAMP_TO_GROUND
+      }
+
+      // ---- 属性解析与 Description 拼接 ----
+      const properties = entity.properties
+      if (properties) {
+        const descText = properties.description ? properties.description.getValue() : ''
+        const slope = properties.avg_slope ? properties.avg_slope.getValue() : ''
+
+        // 提取图片列表：优先读取多图数组 image_urls，若无则读取单图字符串 image_url
+        let imagesList = []
+        if (properties.image_urls) {
+          imagesList = properties.image_urls.getValue()
+        } else if (properties.image_url) {
+          imagesList = [properties.image_url.getValue()]
+        }
+
+        // 生成图片 HTML 列表
+        const imagesHtml = imagesList.map(url => `
+          <img src="${url}" 
+               alt="POI图片" 
+               style="width: 100%; height: auto; border-radius: 6px; border: 1px solid #444;" />
+        `).join('')
+
+        // 将拼装好的 HTML 赋给实体的 description 属性（供 Cesium 默认气泡弹窗展示）
+        entity.description = `
+          <div style="padding: 4px; font-family: sans-serif; color: #fff;">
+            <p style="margin: 0 0 8px 0; line-height: 1.5; color: #dcdcdc;">${descText}</p>
+            ${slope ? `<p style="margin: 0 0 8px 0; font-size: 13px; color: #4caf50;"><b>平均坡度：</b>${slope}</p>` : ''}
+            ${imagesList.length > 0 ? `
+              <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto;">
+                ${imagesHtml}
+              </div>
+            ` : ''}
+          </div>
+        `
       }
     })
 
@@ -42,16 +78,25 @@ export async function initInteraction(viewer) {
         const properties = entity.properties
 
         if (properties) {
-          // 提取约定的字段：name, description, image_url, avg_slope 等
+          // 提取图片列表（支持 image_urls 数组与单图 image_url 兼容）
+          let imagesList = []
+          if (properties.image_urls) {
+            imagesList = properties.image_urls.getValue()
+          } else if (properties.image_url) {
+            imagesList = [properties.image_url.getValue()]
+          }
+
+          // 构造传递给 Vue 响应式变量的数据结构
           const poiData = {
             name: properties.name ? properties.name.getValue() : '未命名点位',
             description: properties.description ? properties.description.getValue() : '暂无详细介绍',
-            imageUrl: properties.image_url ? properties.image_url.getValue() : '',
+            imageUrls: imagesList, // 多图数组
+            imageUrl: imagesList[0] || '', // 保留首张图兼容性
             slope: properties.avg_slope ? properties.avg_slope.getValue() : null,
             rawProperties: properties
           }
 
-          // 更新响应式变量（方便模块4使用）
+          // 更新响应式变量（供 Vue 侧边栏组件同步渲染）
           selectedPoi.value = poiData
 
           // 🌟 核心任务：在控制台打印提取出的点击数据！
