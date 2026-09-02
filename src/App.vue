@@ -9,14 +9,11 @@ import { initInteraction } from './interaction.js'
 import { loadRoute } from './route.js'
 
 onMounted(async () => {
-  // Token A（地形）
   const tokenA = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiZGE3MjZkNS0xMWI4LTRkZDgtOWM3Mi0xM2IzOWY3YzVkZWQiLCJpZCI6NDYwMzg2LCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODQ5NzM3MDd9.s-BE-b8z00JBBx7UQHEfqwHsuG2gGET2FOCu-A7bF2o'
-  // Token B（3DTiles）
   const tokenB = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJkODliZDAyMi1mNzY2LTQwMmYtOTNjNi1lOGY5OGYzMjQ4YmUiLCJpZCI6NDYwNjY1LCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODUwNjg5OTJ9.snV-HHPbKFHGnIL0nWyCtIklA8JEi9mtmVXSxxxzZKU'
 
   Cesium.Ion.defaultAccessToken = tokenA
 
-  // 加载地形
   const terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(5091409, {
     accessToken: tokenA
   })
@@ -30,12 +27,20 @@ onMounted(async () => {
     terrainProvider: terrainProvider,
     baseLayer: Cesium.ImageryLayer.fromWorldImagery()
   })
+  // 直接定位到上方山（无动画）
+viewer.camera.setView({
+  destination: Cesium.Cartesian3.fromDegrees(115.8158, 39.6638, 500),
+  orientation: {
+    pitch: -45,
+    heading: 0,
+    roll: 0
+  }
+})
 
   viewer.scene.globe.depthTestAgainstTerrain = true
   viewer.scene.screenSpaceCameraController.enableCollisionDetection = true
   viewer.scene.globe.verticalExaggeration = 2.5
 
-  // 加载 OSM 建筑
   try {
     const buildings = await Cesium.createOsmBuildingsAsync()
     viewer.scene.primitives.add(buildings)
@@ -43,7 +48,6 @@ onMounted(async () => {
     console.warn('建筑加载失败', e)
   }
 
-  // 加载 3DTiles
   try {
     const resource = await Cesium.IonResource.fromAssetId(5091450, {
       accessToken: tokenB
@@ -61,24 +65,21 @@ onMounted(async () => {
 
   // 位置标签
   viewer.entities.add({
-    position: Cesium.Cartesian3.fromDegrees(115.8161, 39.6638, 179),
+    position: Cesium.Cartesian3.fromDegrees(115.8171, 39.6698, 300),
     allowPicking: false,
     label: {
       text: '上方山',
-      font: '20px sans-serif',
+      font: '30px sans-serif',
       fillColor: Cesium.Color.YELLOW,
       outlineColor: Cesium.Color.BLACK,
       outlineWidth: 2
     }
   })
 
-  // 初始化 POI 交互
   await initInteraction(viewer)
 
-  // 加载彩色路线（GeoJSON）
-  await loadRoute(viewer)
-
-  // ========== 加载 GPX 轨迹（蓝色 + 加宽至 12） ==========
+ 
+  // 加载 GPX 轨迹
   try {
     const gpxDataSource = await Cesium.GpxDataSource.load(
       '/data/上方山路线.gpx',
@@ -89,16 +90,12 @@ onMounted(async () => {
       }
     )
     viewer.dataSources.add(gpxDataSource)
-
-    // 加粗轨迹线（宽度设为 12，原来 6 的两倍）
     gpxDataSource.entities.values.forEach(entity => {
       if (entity.polyline) {
-        entity.polyline.width = 24
+        entity.polyline.width = 12
         entity.polyline.material = Cesium.Color.BLUE.withAlpha(0.9)
       }
     })
-
-    // 自动飞向轨迹
     await viewer.zoomTo(gpxDataSource.entities)
     console.log('✅ 蓝色 GPX 轨迹加载成功（宽度 12）')
   } catch (error) {
