@@ -74,7 +74,7 @@ onMounted(async () => {
 
   // 位置标签
   viewer.entities.add({
-    position: Cesium.Cartesian3.fromDegrees(115.9, 39.7, 300),
+    position: Cesium.Cartesian3.fromDegrees(115.8161, 39.6638, 179),
     allowPicking: false, // 禁止点击选择
     label: {
       text: '上方山',
