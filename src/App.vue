@@ -29,9 +29,9 @@ onMounted(async () => {
   })
   // 直接定位到上方山（无动画）
 viewer.camera.setView({
-  destination: Cesium.Cartesian3.fromDegrees(115.8158, 39.6638, 500),
+  destination: Cesium.Cartesian3.fromDegrees(115.8250, 39.6450, 2500),
   orientation: {
-    pitch: -45,
+    pitch: Cesium.Math.toRadians(-35),
     heading: 0,
     roll: 0
   }
@@ -39,6 +39,8 @@ viewer.camera.setView({
 
   viewer.scene.globe.depthTestAgainstTerrain = true
   viewer.scene.screenSpaceCameraController.enableCollisionDetection = true
+  viewer.scene.screenSpaceCameraController.minimumZoomDistance = 300
+  viewer.scene.screenSpaceCameraController.maximumZoomDistance = 8000
   viewer.scene.globe.verticalExaggeration = 2.5
 
   try {
@@ -54,7 +56,7 @@ viewer.camera.setView({
     })
     const tileset = await Cesium.Cesium3DTileset.fromUrl(resource)
     viewer.scene.primitives.add(tileset)
-    await viewer.zoomTo(tileset)
+   // await viewer.zoomTo(tileset)
   } catch (error) {
     console.error('3DTiles 模型加载失败:', error)
     viewer.camera.setView({
@@ -85,18 +87,18 @@ viewer.camera.setView({
       '/data/上方山路线.gpx',
       {
         clampToGround: true,
-        trackColor: Cesium.Color.BLUE,
-        routeColor: Cesium.Color.BLUE
+        trackColor: Cesium.Color.WHITE,
+        routeColor: Cesium.Color.WHITE
       }
     )
     viewer.dataSources.add(gpxDataSource)
     gpxDataSource.entities.values.forEach(entity => {
       if (entity.polyline) {
         entity.polyline.width = 12
-        entity.polyline.material = Cesium.Color.BLUE.withAlpha(0.9)
+        entity.polyline.material = Cesium.Color.WHITE.withAlpha(0.9)
       }
     })
-    await viewer.zoomTo(gpxDataSource.entities)
+    //await viewer.zoomTo(gpxDataSource.entities)
     console.log('✅ 蓝色 GPX 轨迹加载成功（宽度 12）')
   } catch (error) {
     console.error('❌ GPX 轨迹加载失败:', error)
