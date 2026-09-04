@@ -118,42 +118,47 @@ export async function initInteraction(viewer) {
               background: transparent !important;
               height: 100% !important;
             }
+
+            /* 🌟 核心修改 1：缩小内边距（从 28px 缩小至 16px） */
             .glass-infobox-content {
-              padding: 28px;
+              padding: 16px;
               box-sizing: border-box;
             }
+
+            /* 🌟 核心修改 2：行高从 1.8 适当收紧至 1.5，下边距设为 12px */
             .desc-text {
-              margin: 0 0 20px 0 !important;
-              line-height: 1.8 !important;
+              margin: 0 0 12px 0 !important;
+              line-height: 1.5 !important;
               font-size: 20px !important;
-              letter-spacing: 0.5px !important;
+              letter-spacing: 0.3px !important;
               color: rgba(255, 255, 255, 0.92) !important;
             }
+
+            /* 🌟 坡度信息间距同步调紧 */
             .slope-text {
-              margin: 0 0 24px 0 !important;
+              margin: 0 0 14px 0 !important;
               font-size: 18px !important;
               color: #30d158 !important;
               font-weight: 600 !important;
-              letter-spacing: 0.3px !important;
+              letter-spacing: 0.2px !important;
             }
 
-            /* 🌟 核心改进：去除 max-height 限制，让图片展示区域充分拓展 */
+            /* 🌟 图片列表上方边距与间距调紧 */
             .images-wrapper {
-              margin-top: 20px;
+              margin-top: 12px;
               display: flex;
               flex-direction: column;
-              gap: 20px;
+              gap: 12px;
               width: 100%;
             }
 
-            /* 🌟 图片自适应高分辨率展示 */
             .images-wrapper img {
               width: 100%;
-              max-height: 650px; /* 单张图片在长弹窗下的最大高度放大 */
-              object-fit: cover;  /* 确保图片填充时不拉伸变形 */
-              border-radius: 16px;
+              max-height: 650px;
+              object-fit: cover;
+              border-radius: 14px;
               border: 1px solid rgba(255, 255, 255, 0.22);
-              box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+              box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
             }
           </style>
 

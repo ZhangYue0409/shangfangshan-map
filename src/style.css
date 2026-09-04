@@ -7,54 +7,47 @@
   pointer-events: none;
 }
 
-/* 弹窗主框体拉长至全屏高度 */
 .cesium-infoBox {
   pointer-events: auto;
   width: 580px !important;
   max-width: 94vw !important;
 
-  /* 高度拉长至屏幕全高（留出上下边距或直接全高） */
-  height: calc(100vh - 40px) !important; /* 上下各留 20px 边距，如需完全贴边可设为 100vh */
+  height: calc(100vh - 40px) !important;
   max-height: 100vh !important;
   margin-top: 20px !important;
-
-  /* 毛玻璃核心外观 */
-  background: rgba(22, 22, 26, 0.65) !important;
-  -webkit-backdrop-filter: blur(30px) saturate(200%) !important;
-  backdrop-filter: blur(30px) saturate(200%) !important;
+  background: rgba(18, 18, 22, 0.35) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
   
-  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  /* 精致的微光白色边框，保证高透明度下依然有清晰的轮廓 */
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
   border-radius: 24px !important;
-  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.5),
-              inset 0 1px 1px rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35),
+              inset 0 1px 1px rgba(255, 255, 255, 0.35) !important;
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-/* 标题栏：上下 + 左右 绝对双向居中 */
 .cesium-infoBox-title {
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.05) !important; /* 从 0.10 降至 0.05 */
   color: #ffffff !important;
   font-size: 32px !important;
   font-weight: 700 !important;
   letter-spacing: 0.6px !important;
   
-  /* Flex 布局：实现上下 (align-items) 与 左右 (justify-content) 双向绝对居中 */
   display: flex !important;
   align-items: center !important;
-  justify-content: center !important; /* 左右文本内容居中 */
+  justify-content: center !important;
   text-align: center !important;
   
   height: 76px !important;
   line-height: 1 !important;
-  
-  /* 左右内边距保持一致（左右各 50px），确保真正对称 */
   padding: 0 50px !important;
   margin: 0 !important;
   box-sizing: border-box !important;
 
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
-  position: relative !important; /* 为绝对定位的关闭按钮提供参照基准 */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+  position: relative !important;
 }
 
 /* 关闭按钮：绝对定位至右上角，不再挤压标题文字区域 */

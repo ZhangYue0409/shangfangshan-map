@@ -78,7 +78,7 @@ baseLayer: Cesium.ImageryLayer.fromWorldImagery()
 
 // 直接定位到上方山（无动画）
 viewer.camera.setView({
-destination: Cesium.Cartesian3.fromDegrees(115.8250, 39.6450, 2500),
+destination: Cesium.Cartesian3.fromDegrees(115.8168, 39.6641, 500),
 orientation: {
 pitch: Cesium.Math.toRadians(-35),
 heading: 0,
@@ -112,19 +112,6 @@ destination: Cesium.Cartesian3.fromDegrees(115.8158, 39.6638, 30),
 orientation: { pitch: -30, heading: 0, roll: 0 }
 })
 }
-
-// 位置标签
-viewer.entities.add({
-position: Cesium.Cartesian3.fromDegrees(115.8171, 39.6698, 300),
-allowPicking: false,
-label: {
-text: '上方山',
-font: '30px sans-serif',
-fillColor: Cesium.Color.YELLOW,
-outlineColor: Cesium.Color.BLACK,
-outlineWidth: 2
-}
-})
 
 await initInteraction(viewer)
 
