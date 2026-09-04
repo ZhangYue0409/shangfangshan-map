@@ -49,7 +49,6 @@
         </button>
       </div>
     </div>
-
     <!-- 坡度图例 移到左侧，放在坡度面板下方 -->
     <div v-if="showSlopeLegend" class="slope-legend">
       <div class="legend-title">坡度图例</div>
@@ -66,7 +65,6 @@
         <span>＞20° 陡坡</span>
       </div>
     </div>
-
     <div id="cesium-container"></div>
   </div>
 </template>
@@ -80,14 +78,19 @@ const currentRoute = ref('route1')
 const slopeTarget = ref('off')
 const showSlopeLegend = ref(false)
 let viewer = null
-let dataSourceRoute1 = null
-let dataSourceRoute2 = null
+// 不再把gpxDataSource用于渲染，只用来解析坐标
+let rawGpx1 = null
+let rawGpx2 = null
 let route1Positions = []
 let route2Positions = []
+// 自己手动创建的路线实体
+let routeLineEntity = null
+
 let flightInProgress = false
 let flightStartTime = 0
 let flightStopCallback = null
 let slopeLayer = null
+
 //自己实现headingFromPoints，修复API不存在报错（函数保留，暂不使用）
 function headingFromPoints(pointA, pointB) {
   const cartoA = Cesium.Cartographic.fromCartesian(pointA)
@@ -99,48 +102,58 @@ function headingFromPoints(pointA, pointB) {
 
 //新增：关闭全部路线
 function closeAllRoute(){
-  //关闭路线同时销毁坡度、隐藏图例
   destroySlopeLayer()
   slopeTarget.value = 'off'
   currentRoute.value = null
-
-  if (dataSourceRoute1 && viewer.dataSources.contains(dataSourceRoute1)) {
-    viewer.dataSources.remove(dataSourceRoute1)
-  }
-  if (dataSourceRoute2 && viewer.dataSources.contains(dataSourceRoute2)) {
-    viewer.dataSources.remove(dataSourceRoute2)
+  // 删除自己画的线
+  if(routeLineEntity){
+    viewer.entities.remove(routeLineEntity)
+    routeLineEntity = null
   }
   console.log('✅ 已关闭所有路线')
 }
 
-// 切换路线【已移除自动飞行】
+// 切换路线
 function switchRoute(route) {
-  // 无论切不切换路线，点击路线按钮都销毁坡度图层
   destroySlopeLayer()
   slopeTarget.value = 'off'
   showSlopeLegend.value = false
   if (currentRoute.value === route) return
   currentRoute.value = route
-  // 停止正在进行的飞行
+
   if (flightInProgress && typeof flightStopCallback === 'function') {
     flightStopCallback()
     flightStopCallback = null
   }
-  if (dataSourceRoute1 && viewer.dataSources.contains(dataSourceRoute1)) {
-    viewer.dataSources.remove(dataSourceRoute1)
+  // 清除旧线条
+  if(routeLineEntity){
+    viewer.entities.remove(routeLineEntity)
+    routeLineEntity = null
   }
-  if (dataSourceRoute2 && viewer.dataSources.contains(dataSourceRoute2)) {
-    viewer.dataSources.remove(dataSourceRoute2)
-  }
-  if (route === 'route1' && dataSourceRoute1) {
-    viewer.dataSources.add(dataSourceRoute1)
+
+  if (route === 'route1' && route1Positions.length>0) {
+    routeLineEntity = viewer.entities.add({
+      polyline:{
+        positions: route1Positions,
+        width:12,
+        material: Cesium.Color.fromCssColorString('#D4A574').withAlpha(0.9),
+        clampToGround:true
+      }
+    })
     console.log('✅ 切换到上行路线')
-    // --- 删除原自动飞行调用 flyAlongRoute(route1Positions, dataSourceRoute1) ---
-  } else if (route === 'route2' && dataSourceRoute2) {
-    viewer.dataSources.add(dataSourceRoute2)
+  } else if (route === 'route2' && route2Positions.length>0) {
+    routeLineEntity = viewer.entities.add({
+      polyline:{
+        positions: route2Positions,
+        width:12,
+        material: Cesium.Color.fromCssColorString('#00BCD4').withAlpha(0.9),
+        clampToGround:true
+      }
+    })
     console.log('✅ 切换到下行路线')
   }
 }
+
 //销毁坡度图层
 function destroySlopeLayer() {
   if(slopeLayer){
@@ -149,6 +162,7 @@ function destroySlopeLayer() {
   }
   showSlopeLegend.value = false
 }
+
 //坡度图层切换
 async function setSlopeLayer(mode){
   destroySlopeLayer()
@@ -186,7 +200,8 @@ async function setSlopeLayer(mode){
     }
   }
 }
-// 提取GPX轨迹点
+
+// 提取GPX轨迹点（只拿坐标，完全忽略point实体）
 function getRoutePositions(dataSource) {
   const positions = []
   if (!dataSource || !dataSource.entities) return positions
@@ -200,21 +215,15 @@ function getRoutePositions(dataSource) {
   })
   return positions
 }
+
 // 沿路线飞行【函数保留，不再被切换按钮调用，可后续做飞行按钮使用】
-function flyAlongRoute(positions, routeDataSource) {
+function flyAlongRoute(positions) {
   console.log("===进入飞行函数===")
   if (!viewer || positions.length < 2) return
   flightInProgress = true
   flightStartTime = Date.now()
   const pointsPerSecond = 0.8
   const smoothFactor = 0.025
-  const alphaStart = 0.1
-  const alphaRange = 0.5
-  routeDataSource.entities.values.forEach(entity => {
-    if (entity.polyline) {
-      entity.polyline.material = Cesium.Color.fromCssColorString('#D4A574').withAlpha(alphaStart)
-    }
-  })
   flightStopCallback = () => {
     flightInProgress = false
     viewer.scene.postRender.removeEventListener(onPostRender)
@@ -248,12 +257,6 @@ function flyAlongRoute(positions, routeDataSource) {
         roll: 0
       }
     })
-    const progress = currentPointIndex / (positions.length - 1)
-    routeDataSource.entities.values.forEach(entity => {
-      if (entity.polyline) {
-        entity.polyline.material = Cesium.Color.fromCssColorString('#D4A574').withAlpha(alphaStart + progress * alphaRange)
-      }
-    })
     if (currentPointIndex >= positions.length - 1) {
       flightInProgress = false
       viewer.scene.postRender.removeEventListener(onPostRender)
@@ -263,6 +266,7 @@ function flyAlongRoute(positions, routeDataSource) {
   }
   viewer.scene.postRender.addEventListener(onPostRender)
 }
+
 onMounted(async () => {
   const tokenA = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiZGE3MjZkNS0xMWI4LTRkZDgtOWM3Mi0xM2IzOWY3YzVkZWQiLCJpZCI6NDYwMzg2LCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODQ5NzM3MDd9.s-BE-b8z00JBBx7UQHEfqwHsuG2gGET2FOCu-A7bF2o'
   const tokenB = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJkODliZDAyMi1mNzY2LTQwMmYtOTNjNi1lOGY5OGYzMjQ4YmUiLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODUwNjg5OTJ9.snV-HHPbKFHGnIL0nWyCtIklA8JEi9mtmVXSxxxzZKU'
@@ -323,61 +327,36 @@ onMounted(async () => {
     }
   })
   await initInteraction(viewer)
-  // 加载路线1（上行）
+
+  //【只解析GPX拿坐标！绝不把gpxDataSource添加到viewer】
   try {
-    const gpx1 = await Cesium.GpxDataSource.load(
-      '/data/上方山路线.gpx',
-      {
-        trackColor: Cesium.Color.fromCssColorString('#D4A574'),
-        routeColor: Cesium.Color.fromCssColorString('#D4A574')
-      }
-    )
-    gpx1.entities.values.forEach(entity => {
-      if (entity.polyline) {
-        entity.polyline.width = 12
-        entity.polyline.material = Cesium.Color.fromCssColorString('#D4A574').withAlpha(0.9)
-        entity.polyline.clampToGround = true
-      }
-      if (entity.point) entity.show = false
-    })
-    dataSourceRoute1 = gpx1
-    route1Positions = getRoutePositions(gpx1)
+    rawGpx1 = await Cesium.GpxDataSource.load('/data/上方山路线.gpx')
+    route1Positions = getRoutePositions(rawGpx1)
     console.log('✅路线一轨迹点数量：', route1Positions.length)
   } catch (error) {
     console.error('❌上行路线加载失败', error)
   }
-  // 加载路线2（下行）
+
   try {
-    const gpx2 = await Cesium.GpxDataSource.load(
-      '/data/上方山路线2.gpx',
-      {
-        trackColor: Cesium.Color.fromCssColorString('#00BCD4'),
-        routeColor: Cesium.Color.fromCssColorString('#00BCD4')
-      }
-    )
-    gpx2.entities.values.forEach(entity => {
-      if (entity.polyline) {
-        entity.polyline.width = 12
-        entity.polyline.material = Cesium.Color.fromCssColorString('#00BCD4').withAlpha(0.9)
-        entity.polyline.clampToGround = true
-      }
-      if (entity.point) entity.show = false
-    })
-    dataSourceRoute2 = gpx2
-    route2Positions = getRoutePositions(gpx2)
+    rawGpx2 = await Cesium.GpxDataSource.load('/data/上方山路线2.gpx')
+    route2Positions = getRoutePositions(rawGpx2)
     console.log('✅下行路线加载成功，轨迹点数量：', route2Positions.length)
   } catch (error) {
     console.error('❌下行路线加载失败', error)
   }
-  // 默认显示路线1
-  if (dataSourceRoute1) {
-    viewer.dataSources.add(dataSourceRoute1)
-    viewer.zoomTo(dataSourceRoute1)
-  } else if (dataSourceRoute2) {
-    currentRoute.value = 'route2'
-    viewer.dataSources.add(dataSourceRoute2)
-    viewer.zoomTo(dataSourceRoute2)
+
+  // 默认显示路线1（自己绘制线条，没有任何红点）
+  if(route1Positions.length>0){
+    routeLineEntity = viewer.entities.add({
+      polyline:{
+        positions: route1Positions,
+        width:12,
+        material: Cesium.Color.fromCssColorString('#D4A574').withAlpha(0.9),
+        clampToGround:true
+      }
+    })
   }
+
   window.viewer = viewer
 })
 </script>
@@ -449,7 +428,6 @@ onMounted(async () => {
 .route-btn.active:hover {
   background: rgba(212, 165, 116, 0.4);
 }
-
 /*坡度图例 放到左侧坡度面板下方 */
 .slope-legend{
   position: absolute;
