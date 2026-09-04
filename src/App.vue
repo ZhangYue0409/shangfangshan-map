@@ -1,6 +1,6 @@
 <template>
   <div>
-    <!-- 控制面板 -->
+    <!-- 原有路线选择控制面板 -->
     <div class="control-panel">
       <div class="panel-title">路线选择</div>
       <div class="route-buttons">
@@ -19,6 +19,31 @@
       </div>
     </div>
 
+    <!-- 新增坡度查看控制面板，和上方对齐 -->
+    <div class="control-panel slope-panel">
+      <div class="panel-title">坡度图层</div>
+      <div class="route-buttons">
+        <button
+          :class="['route-btn', { active: slopeTarget === 'off' }]"
+          @click="setSlopeLayer('off')"
+        >
+          关闭坡度
+        </button>
+        <button
+          :class="['route-btn', { active: slopeTarget === 'route1' }]"
+          @click="setSlopeLayer('route1')"
+        >
+          路线1坡度
+        </button>
+        <button
+          :class="['route-btn', { active: slopeTarget === 'route2' }]"
+          @click="setSlopeLayer('route2')"
+        >
+          路线2坡度
+        </button>
+      </div>
+    </div>
+
     <div id="cesium-container"></div>
   </div>
 </template>
@@ -27,17 +52,23 @@
 import { onMounted, ref } from 'vue'
 import * as Cesium from 'cesium'
 import { initInteraction } from './interaction.js'
+import { createSlopeLayer } from './slopeLayer.js'
 
 const currentRoute = ref('route1')
+//坡度图层状态
+const slopeTarget = ref('off')
 
 let viewer = null
 let dataSourceRoute1 = null
 let dataSourceRoute2 = null
 let route1Positions = []
+let route2Positions = []
 
 let flightInProgress = false
 let flightStartTime = 0
 let flightStopCallback = null
+
+let slopeLayer = null
 
 // 切换路线
 function switchRoute(route) {
@@ -49,6 +80,10 @@ function switchRoute(route) {
     flightStopCallback()
     flightStopCallback = null
   }
+
+  //切换路线销毁坡度图层
+  destroySlopeLayer()
+  slopeTarget.value = 'off'
 
   if (dataSourceRoute1 && viewer.dataSources.contains(dataSourceRoute1)) {
     viewer.dataSources.remove(dataSourceRoute1)
@@ -69,18 +104,48 @@ function switchRoute(route) {
   }
 }
 
-// 提取GPX轨迹点，Cartographic转Cartesian3
+//销毁坡度图层
+function destroySlopeLayer() {
+  if(slopeLayer){
+    slopeLayer.destroy()
+    slopeLayer = null
+  }
+}
+
+//坡度图层切换
+function setSlopeLayer(mode){
+  destroySlopeLayer()
+  slopeTarget.value = mode
+  if(mode === 'off'){
+    return
+  }
+  if(mode === 'route1'){
+    if(!route1Positions || route1Positions.length <2){
+      alert('路线1轨迹数据尚未加载完成！')
+      slopeTarget.value = 'off'
+      return
+    }
+    slopeLayer = createSlopeLayer(viewer, route1Positions)
+  }else if(mode === 'route2'){
+    if(!route2Positions || route2Positions.length <2){
+      alert('路线2轨迹数据尚未加载完成！')
+      slopeTarget.value = 'off'
+      return
+    }
+    slopeLayer = createSlopeLayer(viewer, route2Positions)
+  }
+}
+
+// ✅修复：提取GPX轨迹点
 function getRoutePositions(dataSource) {
   const positions = []
   if (!dataSource || !dataSource.entities) return positions
   dataSource.entities.values.forEach(entity => {
     if (entity.polyline && entity.polyline.positions) {
-      const cartos = entity.polyline.positions.getValue(Cesium.JulianDate.now())
-      if (cartos) {
-        for (const c of cartos) {
-          const cart3 = Cesium.Cartesian3.fromRadians(c.longitude, c.latitude, c.height + 80)
-          positions.push(cart3)
-        }
+      // getValue 返回直接就是 Cartesian3[]
+      const cart3List = entity.polyline.positions.getValue(Cesium.JulianDate.now())
+      if (cart3List) {
+        positions.push(...cart3List)
       }
     }
   })
@@ -219,10 +284,6 @@ onMounted(async () => {
     viewer.scene.primitives.add(tileset)
   } catch (error) {
     console.error('3DTiles 模型加载失败:', error)
-    viewer.camera.setView({
-      destination: Cesium.Cartesian3.fromDegrees(115.8158, 39.6638, 30),
-      orientation: { pitch: -30, heading: 0, roll: 0 }
-    })
   }
 
   // 上方山文字标签
@@ -240,12 +301,11 @@ onMounted(async () => {
 
   await initInteraction(viewer)
 
-  // 加载路线1（上行）
+  // 加载路线1（上行）❗load参数移除 clampToGround
   try {
     const gpx1 = await Cesium.GpxDataSource.load(
       '/data/上方山路线.gpx',
       {
-        clampToGround: true,
         trackColor: Cesium.Color.fromCssColorString('#D4A574'),
         routeColor: Cesium.Color.fromCssColorString('#D4A574')
       }
@@ -265,12 +325,11 @@ onMounted(async () => {
     console.error('❌上行路线加载失败', error)
   }
 
-  // 加载路线2（下行）
+  // 加载路线2（下行）❗load参数移除 clampToGround
   try {
     const gpx2 = await Cesium.GpxDataSource.load(
       '/data/上方山路线2.gpx',
       {
-        clampToGround: true,
         trackColor: Cesium.Color.fromCssColorString('#00BCD4'),
         routeColor: Cesium.Color.fromCssColorString('#00BCD4')
       }
@@ -284,7 +343,8 @@ onMounted(async () => {
       if (entity.point) entity.show = false
     })
     dataSourceRoute2 = gpx2
-    console.log('✅下行路线加载成功')
+    route2Positions = getRoutePositions(gpx2)
+    console.log('✅下行路线加载成功，轨迹点数量：', route2Positions.length)
   } catch (error) {
     console.error('❌下行路线加载失败', error)
   }
@@ -315,7 +375,7 @@ onMounted(async () => {
 .control-panel {
   position: absolute;
   top: 20px;
-  left: 0;
+  left: 20px;
   z-index: 100;
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(10px);
@@ -326,6 +386,10 @@ onMounted(async () => {
   box-shadow: 0 4px 20px rgba(0,0,0,0.5);
   border: 1px solid rgba(255,255,255,0.1);
   user-select: none;
+}
+/*坡度面板向下偏移，和上方面板对齐，上下分开 */
+.slope-panel{
+  top: 180px;
 }
 
 .panel-title {
