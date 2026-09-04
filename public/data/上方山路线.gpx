@@ -39,16 +39,6 @@
       <trkpt lat="39.67577966" lon="115.82235434"><ele>435.48</ele><time>2026-09-01T03:59:28Z</time></trkpt>
       <trkpt lat="39.67579786" lon="115.82234796"><ele>437.69</ele><time>2026-09-01T04:09:31Z</time></trkpt>
       <trkpt lat="39.67575764" lon="115.82242763"><ele>436.68</ele><time>2026-09-01T04:19:32Z</time><speed>0.07</speed></trkpt>
-      <trkpt lat="39.67574950" lon="115.82244077"><ele>439.56</ele><time>2026-09-01T04:29:34Z</time><speed>0.06</speed></trkpt>
-      <trkpt lat="39.67546953" lon="115.82282295"><ele>424.66</ele><time>2026-09-01T04:39:35Z</time><speed>0.07</speed></trkpt>
-      <trkpt lat="39.67500779" lon="115.82254411"><ele>407.53</ele><time>2026-09-01T04:45:22Z</time><speed>0.87</speed></trkpt>
-      <trkpt lat="39.67448728" lon="115.82272515"><ele>403.23</ele><time>2026-09-01T04:48:38Z</time><speed>0.27</speed></trkpt>
-      <trkpt lat="39.67465133" lon="115.82326483"><ele>415.81</ele><time>2026-09-01T04:50:49Z</time><speed>0.66</speed></trkpt>
-      <trkpt lat="39.67471849" lon="115.82390367"><ele>429.47</ele><time>2026-09-01T04:52:20Z</time><speed>0.92</speed></trkpt>
-      <trkpt lat="39.67472679" lon="115.82462573"><ele>459.07</ele><time>2026-09-01T04:55:51Z</time><speed>0.73</speed></trkpt>
-      <trkpt lat="39.67478347" lon="115.82528544"><ele>481.07</ele><time>2026-09-01T04:57:29Z</time><speed>0.28</speed></trkpt>
-      <trkpt lat="39.67419468" lon="115.82517251"><ele>482.55</ele><time>2026-09-01T05:06:41Z</time><speed>0.36</speed></trkpt>
-      <trkpt lat="39.67361035" lon="115.82529370"><ele>505.50</ele><time>2026-09-01T05:10:32Z</time><speed>0.17</speed></trkpt>
-    </trkseg>
+      
   </trk>
 </gpx>
