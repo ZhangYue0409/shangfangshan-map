@@ -25,6 +25,27 @@
         </button>
       </div>
     </div>
+
+    <!-- 新增：图层显隐控制面板（放在右侧Top-Right） -->
+    <div class="layer-control-panel">
+      <div class="panel-title">图层控制</div>
+      <div class="layer-list">
+        <label 
+          v-for="layer in layerConfigs" 
+          :key="layer.id" 
+          class="layer-item"
+        >
+          <input 
+            type="checkbox" 
+            v-model="layer.visible" 
+            @change="handleLayerToggle(layer)" 
+          />
+          <span class="checkbox-custom"></span>
+          <span class="layer-label-text">{{ layer.name }}</span>
+        </label>
+      </div>
+    </div>
+
     <!-- 坡度查看控制面板 -->
     <div class="control-panel slope-panel">
       <div class="panel-title">坡度</div>
@@ -49,6 +70,7 @@
         </button>
       </div>
     </div>
+
     <!-- 坡度图例 移到左侧，放在坡度面板下方 -->
     <div v-if="showSlopeLegend" class="slope-legend">
       <div class="legend-title">坡度图例</div>
@@ -65,19 +87,24 @@
         <span>＞20° 陡坡</span>
       </div>
     </div>
+
     <div id="cesium-container"></div>
   </div>
 </template>
+
 <script setup>
 import { onMounted, ref } from 'vue'
 import * as Cesium from 'cesium'
 import { initInteraction } from './interaction.js'
 import { createSlopeLayer } from './slopeLayer.js'
+import { layerConfigs, initGeoJsonLayers, toggleLayerVisibility } from './layerManager.js'
+
 const currentRoute = ref('route1')
-//坡度图层状态
+// 坡度图层状态
 const slopeTarget = ref('off')
 const showSlopeLegend = ref(false)
 let viewer = null
+
 // 不再把gpxDataSource用于渲染，只用来解析坐标
 let rawGpx1 = null
 let rawGpx2 = null
@@ -91,7 +118,12 @@ let flightStartTime = 0
 let flightStopCallback = null
 let slopeLayer = null
 
-//自己实现headingFromPoints，修复API不存在报错（函数保留，暂不使用）
+// 图层显隐开关响应函数
+function handleLayerToggle(layer) {
+  toggleLayerVisibility(layer)
+}
+
+// 修复API不存在报错函数
 function headingFromPoints(pointA, pointB) {
   const cartoA = Cesium.Cartographic.fromCartesian(pointA)
   const cartoB = Cesium.Cartographic.fromCartesian(pointB)
@@ -100,12 +132,11 @@ function headingFromPoints(pointA, pointB) {
   return Math.atan2(deltaLon, deltaLat)
 }
 
-//新增：关闭全部路线
+// 关闭全部路线
 function closeAllRoute(){
   destroySlopeLayer()
   slopeTarget.value = 'off'
   currentRoute.value = null
-  // 删除自己画的线
   if(routeLineEntity){
     viewer.entities.remove(routeLineEntity)
     routeLineEntity = null
@@ -125,36 +156,35 @@ function switchRoute(route) {
     flightStopCallback()
     flightStopCallback = null
   }
-  // 清除旧线条
   if(routeLineEntity){
     viewer.entities.remove(routeLineEntity)
     routeLineEntity = null
   }
 
-  if (route === 'route1' && route1Positions.length>0) {
+  if (route === 'route1' && route1Positions.length > 0) {
     routeLineEntity = viewer.entities.add({
       polyline:{
         positions: route1Positions,
-        width:12,
+        width: 12,
         material: Cesium.Color.fromCssColorString('#D4A574').withAlpha(0.9),
-        clampToGround:true
+        clampToGround: true
       }
     })
     console.log('✅ 切换到上行路线')
-  } else if (route === 'route2' && route2Positions.length>0) {
+  } else if (route === 'route2' && route2Positions.length > 0) {
     routeLineEntity = viewer.entities.add({
       polyline:{
         positions: route2Positions,
-        width:12,
+        width: 12,
         material: Cesium.Color.fromCssColorString('#00BCD4').withAlpha(0.9),
-        clampToGround:true
+        clampToGround: true
       }
     })
     console.log('✅ 切换到下行路线')
   }
 }
 
-//销毁坡度图层
+// 销毁坡度图层
 function destroySlopeLayer() {
   if(slopeLayer){
     slopeLayer.destroy()
@@ -163,7 +193,7 @@ function destroySlopeLayer() {
   showSlopeLegend.value = false
 }
 
-//坡度图层切换
+// 坡度图层切换
 async function setSlopeLayer(mode){
   destroySlopeLayer()
   slopeTarget.value = mode
@@ -171,7 +201,7 @@ async function setSlopeLayer(mode){
     return
   }
   if(mode === 'route1'){
-    if(!route1Positions || route1Positions.length <2){
+    if(!route1Positions || route1Positions.length < 2){
       alert('路线1轨迹数据尚未加载完成！')
       slopeTarget.value = 'off'
       return
@@ -185,7 +215,7 @@ async function setSlopeLayer(mode){
       slopeTarget.value = 'off'
     }
   }else if(mode === 'route2'){
-    if(!route2Positions || route2Positions.length <2){
+    if(!route2Positions || route2Positions.length < 2){
       alert('路线2轨迹数据尚未加载完成！')
       slopeTarget.value = 'off'
       return
@@ -201,7 +231,7 @@ async function setSlopeLayer(mode){
   }
 }
 
-// 提取GPX轨迹点（只拿坐标，完全忽略point实体）
+// 提取GPX轨迹点
 function getRoutePositions(dataSource) {
   const positions = []
   if (!dataSource || !dataSource.entities) return positions
@@ -216,74 +246,27 @@ function getRoutePositions(dataSource) {
   return positions
 }
 
-// 沿路线飞行【函数保留，不再被切换按钮调用，可后续做飞行按钮使用】
-function flyAlongRoute(positions) {
-  console.log("===进入飞行函数===")
-  if (!viewer || positions.length < 2) return
-  flightInProgress = true
-  flightStartTime = Date.now()
-  const pointsPerSecond = 0.8
-  const smoothFactor = 0.025
-  flightStopCallback = () => {
-    flightInProgress = false
-    viewer.scene.postRender.removeEventListener(onPostRender)
-  }
-  function onPostRender() {
-    if (!flightInProgress) return
-    const elapsedMs = Date.now() - flightStartTime
-    const elapsedSec = elapsedMs / 1000.0
-    let currentPointIndex = elapsedSec * pointsPerSecond
-    if (currentPointIndex >= positions.length - 1) {
-      currentPointIndex = positions.length - 1
-    }
-    const idx = Math.floor(currentPointIndex)
-    const tSeg = currentPointIndex - idx
-    const i0 = Math.min(idx, positions.length - 1)
-    const i1 = Math.min(idx + 1, positions.length - 1)
-    const targetPoint = Cesium.Cartesian3.lerp(
-      positions[i0], positions[i1], tSeg, new Cesium.Cartesian3()
-    )
-    const lookAheadIndex = Math.min(i1 + 15, positions.length - 1)
-    const lookTarget = positions[lookAheadIndex]
-    const camera = viewer.camera
-    const smoothDest = Cesium.Cartesian3.lerp(camera.position, targetPoint, smoothFactor, new Cesium.Cartesian3())
-    const targetHeading = headingFromPoints(targetPoint, lookTarget)
-    const smoothHeading = Cesium.Math.lerp(camera.heading, targetHeading, smoothFactor)
-    viewer.camera.setView({
-      destination: smoothDest,
-      orientation: {
-        heading: smoothHeading,
-        pitch: Cesium.Math.toRadians(-42),
-        roll: 0
-      }
-    })
-    if (currentPointIndex >= positions.length - 1) {
-      flightInProgress = false
-      viewer.scene.postRender.removeEventListener(onPostRender)
-      flightStopCallback = null
-      console.log('✅ 路线飞行完成')
-    }
-  }
-  viewer.scene.postRender.addEventListener(onPostRender)
-}
-
 onMounted(async () => {
   const tokenA = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiZGE3MjZkNS0xMWI4LTRkZDgtOWM3Mi0xM2IzOWY3YzVkZWQiLCJpZCI6NDYwMzg2LCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODQ5NzM3MDd9.s-BE-b8z00JBBx7UQHEfqwHsuG2gGET2FOCu-A7bF2o'
   const tokenB = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJkODliZDAyMi1mNzY2LTQwMmYtOTNjNi1lOGY5OGYzMjQ4YmUiLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODUwNjg5OTJ9.snV-HHPbKFHGnIL0nWyCtIklA8JEi9mtmVXSxxxzZKU'
   Cesium.Ion.defaultAccessToken = tokenA
+
   const terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(5091409, {
     accessToken: tokenA
   })
+
   viewer = new Cesium.Viewer('cesium-container', {
     baseLayerPicker: false,
     geocoder: false,
     timeline: false,
     animation: false,
     sceneModePicker: false,
+    selectionIndicator: false,
     terrainProvider: terrainProvider,
     baseLayer: Cesium.ImageryLayer.fromWorldImagery()
   })
-  // 初始视角（居中于路线）
+
+  // 初始视角
   viewer.camera.setView({
     destination: Cesium.Cartesian3.fromDegrees(115.8165, 39.6660, 1200),
     orientation: {
@@ -292,67 +275,60 @@ onMounted(async () => {
       roll: 0
     }
   })
+
   viewer.scene.globe.depthTestAgainstTerrain = true
   viewer.scene.screenSpaceCameraController.enableCollisionDetection = true
   viewer.scene.screenSpaceCameraController.minimumZoomDistance = 300
   viewer.scene.screenSpaceCameraController.maximumZoomDistance = 8000
   viewer.scene.globe.verticalExaggeration = 2.5
-  // 建筑
+
+  // 加载 3D 建筑与 Tileset
   try {
     const buildings = await Cesium.createOsmBuildingsAsync()
     viewer.scene.primitives.add(buildings)
   } catch (e) {
     console.warn('建筑加载失败', e)
   }
-  // 3D Tiles
+
   try {
-    const resource = await Cesium.IonResource.fromAssetId(5091450, {
-      accessToken: tokenB
-    })
+    const resource = await Cesium.IonResource.fromAssetId(5091450, { accessToken: tokenB })
     const tileset = await Cesium.Cesium3DTileset.fromUrl(resource)
     viewer.scene.primitives.add(tileset)
   } catch (error) {
     console.error('3DTiles 模型加载失败:', error)
   }
-  // 上方山文字标签
-  viewer.entities.add({
-    position: Cesium.Cartesian3.fromDegrees(115.8171, 39.6698, 300),
-    allowPicking: false,
-    label: {
-      text: '上方山',
-      font: '30px sans-serif',
-      fillColor: Cesium.Color.YELLOW,
-      outlineColor: Cesium.Color.BLACK,
-      outlineWidth: 2
-    }
-  })
+
+  // 初始化点击拾取交互
   await initInteraction(viewer)
 
-  //【只解析GPX拿坐标！绝不把gpxDataSource添加到viewer】
+  // 🌟 初始化并发异步加载 4 个 GeoJSON 图层
+  await initGeoJsonLayers(viewer)
+
+  // 加载 GPX 路线轨迹
   try {
     rawGpx1 = await Cesium.GpxDataSource.load('/data/上方山路线.gpx')
     route1Positions = getRoutePositions(rawGpx1)
-    console.log('✅路线一轨迹点数量：', route1Positions.length)
+    console.log('✅ 路线一轨迹点数量：', route1Positions.length)
   } catch (error) {
-    console.error('❌上行路线加载失败', error)
+    console.error('❌ 上行路线加载失败', error)
   }
 
   try {
     rawGpx2 = await Cesium.GpxDataSource.load('/data/上方山路线2.gpx')
     route2Positions = getRoutePositions(rawGpx2)
-    console.log('✅下行路线加载成功，轨迹点数量：', route2Positions.length)
+    console.log('✅ 下行路线加载成功，轨迹点数量：', route2Positions.length)
   } catch (error) {
-    console.error('❌下行路线加载失败', error)
+    console.error('❌ 下行路线加载失败', error)
   }
 
-  // 默认显示路线1（自己绘制线条，没有任何红点）
-  if(route1Positions.length>0){
+  // 默认渲染路线1
+  if (route1Positions.length > 0) {
     routeLineEntity = viewer.entities.add({
-      polyline:{
+      polyline: {
         positions: route1Positions,
-        width:12,
+        width: 12,
         material: Cesium.Color.fromCssColorString('#D4A574').withAlpha(0.9),
-        clampToGround:true
+        clampToGround: true
       }
     })
   }
@@ -360,6 +336,7 @@ onMounted(async () => {
   window.viewer = viewer
 })
 </script>
+
 <style scoped>
 #cesium-container {
   width: 100vw;
@@ -368,106 +345,184 @@ onMounted(async () => {
   padding: 0;
   overflow: hidden;
 }
-.control-panel {
+
+/* 控制面板：与 InfoBox 统一的毛玻璃风格 */
+.control-panel,
+.layer-control-panel,
+.slope-legend {
   position: absolute;
+  z-index: 100;
+  box-sizing: border-box;
+  color: #ffffff;
+
+  background: rgba(18, 18, 22, 0.35);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 20px;
+  box-shadow:
+    0 16px 36px rgba(0, 0, 0, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.3);
+
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* 图层控制：最上方 */
+.layer-control-panel {
   top: 20px;
   left: 20px;
-  z-index: 100;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(10px);
-  border-radius: 12px;
-  padding: 16px 20px;
-  padding-left: 24px;
-  min-width: 160px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-  border: 1px solid rgba(255,255,255,0.1);
-  user-select: none;
-  pointer-events: auto;
+  right: auto;
+  min-width: 170px;
+  padding: 16px 18px;
 }
-/*坡度面板向下偏移，和上方面板对齐，上下分开 */
-.slope-panel{
-  top: 215px;
+
+/* 路线选择：与图层控制间隔 20px */
+.control-panel {
+  top: 218px;
+  left: 20px;
+  min-width: 170px;
+  padding: 16px 18px;
 }
-.panel-title {
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 10px;
-  letter-spacing: 1px;
-  opacity: 0.8;
+
+/* 坡度：与路线选择间隔 20px */
+.slope-panel {
+  top: 428px;
+}
+
+/* 坡度图例：与坡度面板间隔 20px */
+.slope-legend {
+  top: 650px;
+  left: 20px;
+  min-width: 170px;
+  padding: 14px 18px;
+}
+
+/* 面板标题：模拟 InfoBox 标题栏 */
+.panel-title,
+.legend-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 42px;
+  margin: -16px -18px 14px;
+  padding: 0 16px;
+
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
   text-align: center;
 }
+
+/* 坡度图例标题的边距单独适配 */
+.legend-title {
+  margin: -14px -18px 12px;
+}
+
+/* 图层开关 */
+.layer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.layer-item {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.layer-item:hover {
+  color: #ffffff;
+}
+
+.layer-item input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin-right: 9px;
+  cursor: pointer;
+  accent-color: #d4a574;
+}
+
+.layer-label-text {
+  font-weight: 500;
+}
+
+/* 路线和坡度按钮 */
 .route-buttons {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
+
 .route-btn {
-  padding: 8px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.199);
-  border-radius: 8px;
-  background: rgba(255,255,255,0.05);
-  color: rgba(255,255,255,0.7);
+  min-height: 38px;
+  padding: 8px 14px;
+
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+
+  color: rgba(255, 255, 255, 0.82);
   font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  font-weight: 600;
   text-align: center;
-  font-weight: 500;
+  cursor: pointer;
+
+  transition: all 0.25s ease;
 }
+
 .route-btn:hover {
-  background: rgba(255, 255, 255, 0.244);
-  color: #fff;
-  border-color: rgba(255,255,255,0.4);
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #ffffff;
 }
+
 .route-btn.active {
-  background: rgba(212, 165, 116, 0.3);
-  border-color: #D4A574;
-  color: #fff;
-  box-shadow: 0 0 20px rgba(212, 165, 116, 0.1);
+  background: rgba(212, 165, 116, 0.28);
+  border-color: rgba(235, 194, 135, 0.9);
+  color: #ffffff;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.2),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
 }
-.route-btn.active:hover {
-  background: rgba(212, 165, 116, 0.4);
+
+/* 坡度图例 */
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 7px 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
 }
-/*坡度图例 放到左侧坡度面板下方 */
-.slope-legend{
-  position: absolute;
-  top: 410px;
-  left: 20px;
-  z-index:100;
-  background:rgba(0,0,0,0.7);
-  backdrop-filter: blur(10px);
-  padding:12px 16px;
-  border-radius:10px;
-  color:#ffffff;
-  font-size:14px;
-  border:1px solid rgba(255,255,255,0.12);
-  min-width:160px;
+
+.color-block {
+  width: 20px;
+  height: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
-.legend-title{
-  text-align:center;
-  font-weight:600;
-  margin-bottom:8px;
-  opacity:0.85;
+
+.color-block.green {
+  background-color: #00c800;
 }
-.legend-item{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  margin:5px 0;
+
+.color-block.yellow {
+  background-color: #ffff00;
 }
-.color-block{
-  width:20px;
-  height:10px;
-  border-radius:2px;
-  border:1px solid #666;
-}
-.color-block.green{
-  background-color:#00c800;
-}
-.color-block.yellow{
-  background-color:#ffff00;
-}
-.color-block.red{
-  background-color:#ff2222;
+
+.color-block.red {
+  background-color: #ff2222;
 }
 </style>

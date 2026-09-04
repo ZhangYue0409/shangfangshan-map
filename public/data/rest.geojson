@@ -1,0 +1,77 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [115.8178, 39.6657, 220.1]
+      },
+      "properties": {
+        "name": "休息点1",
+        "description": "休息点一",
+        "avg_slope": "12.5°"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [115.8199, 39.6679, 259.8]
+      },
+      "properties": {
+        "name": "休息点2",
+        "description": "休息点二（长椅）",
+        "avg_slope": "12.5°"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [115.8212, 39.6702, 352.3]
+      },
+      "properties": {
+        "name": "休息点3",
+        "description": "石头平台",
+        "avg_slope": "12.5°"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [115.8210, 39.6037, 345.4]
+      },
+      "properties": {
+        "name": "休息点4",
+        "description": "休息点四",
+        "avg_slope": "12.5°"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [115.8214, 39.6713, 388.8]
+      },
+      "properties": {
+        "name": "休息点5",
+        "description": "休息点五",
+        "avg_slope": "12.5°"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [115.8218, 39.6728, 386.3]
+      },
+      "properties": {
+        "name": "休息点6",
+        "description": "休息点六",
+        "avg_slope": "12.5°"
+      }
+    }
+  ]
+}

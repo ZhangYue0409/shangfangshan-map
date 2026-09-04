@@ -1,48 +1,54 @@
-/* 调整 InfoBox 容器贴合整个屏幕高度 */
+/* =========================================================
+ * 1. 调整 InfoBox 容器布局
+ * ========================================================= */
 .cesium-viewer-infoBoxContainer {
-  top: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  height: 100vh !important; /* 🌟 容器高度与显示界面同高 */
+  top: 24px !important;
+  right: 24px !important;
+  bottom: 24px !important;
   pointer-events: none;
 }
 
+/* =========================================================
+ * 2. 弹窗主框体：适度缩小宽度与高度
+ * ========================================================= */
 .cesium-infoBox {
   pointer-events: auto;
-  width: 580px !important;
-  max-width: 94vw !important;
+  width: 460px !important;
+  max-width: 90vw !important;
 
-  height: calc(100vh - 40px) !important;
-  max-height: 100vh !important;
-  margin-top: 20px !important;
+  /* 🌟 核心修改：强制把弹窗高度设为 75vh，不再使用 auto */
+  height: 75vh !important;
+  min-height: 500px !important;
+
+  /* 高透 Apple 毛玻璃外观 */
   background: rgba(18, 18, 22, 0.35) !important;
   -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
   backdrop-filter: blur(20px) saturate(180%) !important;
   
-  /* 精致的微光白色边框，保证高透明度下依然有清晰的轮廓 */
-  border: 1px solid rgba(255, 255, 255, 0.28) !important;
-  border-radius: 24px !important;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35),
-              inset 0 1px 1px rgba(255, 255, 255, 0.35) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35),
+              inset 0 1px 1px rgba(255, 255, 255, 0.3) !important;
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
+/* 🌟 确保标题栏高度写死 60px */
 .cesium-infoBox-title {
-  background: rgba(255, 255, 255, 0.05) !important; /* 从 0.10 降至 0.05 */
+  background: rgba(255, 255, 255, 0.05) !important;
   color: #ffffff !important;
-  font-size: 32px !important;
+  font-size: 24px !important;
   font-weight: 700 !important;
-  letter-spacing: 0.6px !important;
+  letter-spacing: 0.5px !important;
   
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   text-align: center !important;
   
-  height: 76px !important;
+  height: 60px !important;
   line-height: 1 !important;
-  padding: 0 50px !important;
+  padding: 0 44px !important;
   margin: 0 !important;
   box-sizing: border-box !important;
 
@@ -50,13 +56,13 @@
   position: relative !important;
 }
 
-/* 关闭按钮：绝对定位至右上角，不再挤压标题文字区域 */
+/* 🌟 关闭按钮同步缩小定位 */
 .cesium-infoBox-close {
   position: absolute !important;
-  top: 20px !important;            /* (76px 标题栏 - 36px 按钮) / 2 = 20px 垂直居中 */
-  right: 20px !important;          /* 距离右侧 20px */
-  width: 36px !important;
-  height: 36px !important;
+  top: 14px !important;            /* (60px 标题栏 - 32px 按钮) / 2 = 14px 居中 */
+  right: 16px !important;
+  width: 32px !important;
+  height: 32px !important;
   border-radius: 50% !important;
   background: rgba(255, 255, 255, 0.18) !important;
   transition: background 0.2s;
@@ -67,10 +73,12 @@
   background: rgba(255, 255, 255, 0.35) !important;
 }
 
-/* iframe 扣除固定高度 76px 的标题栏 */
+/* 🌟 核心修改：允许 iframe 响应滚轮滑动与鼠标点击 */
 .cesium-infoBox-iframe {
   background: transparent !important;
   border: none !important;
   width: 100% !important;
-  height: calc(100% - 76px) !important; 
+  height: calc(100% - 60px) !important;
+  display: block !important;
+  pointer-events: auto !important; /* 确保鼠标事件可以穿透进 iframe 触发滑动 */
 }
