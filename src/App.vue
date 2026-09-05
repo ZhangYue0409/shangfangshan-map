@@ -268,7 +268,7 @@ onMounted(async () => {
 
   // 初始视角
   viewer.camera.setView({
-    destination: Cesium.Cartesian3.fromDegrees(115.8165, 39.6660, 1200),
+    destination: Cesium.Cartesian3.fromDegrees(115.8180, 39.6520, 1500),
     orientation: {
       pitch: Cesium.Math.toRadians(-35),
       heading: 0,

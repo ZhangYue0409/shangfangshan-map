@@ -41,7 +41,7 @@
       "type": "Feature",
       "geometry": {
         "type": "Point",
-        "coordinates": [115.8210, 39.6037, 345.4]
+        "coordinates": [115.8214, 39.6713, 388.8]
       },
       "properties": {
         "name": "休息点4",
@@ -53,23 +53,11 @@
       "type": "Feature",
       "geometry": {
         "type": "Point",
-        "coordinates": [115.8214, 39.6713, 388.8]
+        "coordinates": [115.8218, 39.6728, 386.3]
       },
       "properties": {
         "name": "休息点5",
         "description": "休息点五",
-        "avg_slope": "12.5°"
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": {
-        "type": "Point",
-        "coordinates": [115.8218, 39.6728, 386.3]
-      },
-      "properties": {
-        "name": "休息点6",
-        "description": "休息点六",
         "avg_slope": "12.5°"
       }
     }
