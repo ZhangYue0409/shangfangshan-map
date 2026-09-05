@@ -8,14 +8,24 @@
           :class="['route-btn', { active: currentRoute === 'route1' }]"
           @click="switchRoute('route1')"
         >
-          路线1
+          主路线
         </button>
-        <button
+
+        <!-- <button
           :class="['route-btn', { active: currentRoute === 'route2' }]"
           @click="switchRoute('route2')"
         >
           路线2
+        </button> -->
+
+        <button class="route-btn" @click="showHikingRoute">
+          不回头极限徒步路线
         </button>
+
+        <button class="route-btn" @click="showPhotoRoute">
+          拍照浏览景点路线
+        </button>
+
         <!--新增关闭路线按钮-->
         <button
           class="route-btn"
@@ -60,14 +70,14 @@
           :class="['route-btn', { active: slopeTarget === 'route1' }]"
           @click="setSlopeLayer('route1')"
         >
-          路线1坡度
+          主路线坡度
         </button>
-        <button
+        <!-- <button
           :class="['route-btn', { active: slopeTarget === 'route2' }]"
           @click="setSlopeLayer('route2')"
         >
           路线2坡度
-        </button>
+        </button> -->
       </div>
     </div>
 
@@ -118,6 +128,10 @@ let flightStartTime = 0
 let flightStopCallback = null
 let slopeLayer = null
 
+//加入两条新路线
+let hikingRouteLayer = null
+let photoRouteLayer = null
+
 // 图层显隐开关响应函数
 function handleLayerToggle(layer) {
   toggleLayerVisibility(layer)
@@ -141,12 +155,54 @@ function closeAllRoute(){
     viewer.entities.remove(routeLineEntity)
     routeLineEntity = null
   }
+
+  if(hikingRouteLayer)
+  {
+    hikingRouteLayer.show=false
+  }
+
+
+  if(photoRouteLayer)
+  {
+    photoRouteLayer.show=false
+  }
   console.log('✅ 已关闭所有路线')
+}
+
+function showHikingRoute(){
+
+  closeAllRoute()
+
+  if(hikingRouteLayer){
+    hikingRouteLayer.show=true
+  }
+
+}
+
+
+
+function showPhotoRoute(){
+
+  closeAllRoute()
+
+  if(photoRouteLayer){
+    photoRouteLayer.show=true
+  }
+
 }
 
 // 切换路线
 function switchRoute(route) {
   destroySlopeLayer()
+    // 隐藏新增GeoJSON路线
+  if(hikingRouteLayer){
+    hikingRouteLayer.show = false
+  }
+
+  if(photoRouteLayer){
+    photoRouteLayer.show = false
+  }
+
   slopeTarget.value = 'off'
   showSlopeLegend.value = false
   if (currentRoute.value === route) return
@@ -202,7 +258,7 @@ async function setSlopeLayer(mode){
   }
   if(mode === 'route1'){
     if(!route1Positions || route1Positions.length < 2){
-      alert('路线1轨迹数据尚未加载完成！')
+      alert('主路线轨迹数据尚未加载完成！')
       slopeTarget.value = 'off'
       return
     }
@@ -304,6 +360,90 @@ onMounted(async () => {
   // 🌟 初始化并发异步加载 4 个 GeoJSON 图层
   await initGeoJsonLayers(viewer)
 
+// 加载两条路线 GeoJSON
+async function loadRouteGeoJSON(
+  url,
+  name,
+  color,
+  type
+){
+
+  try{
+
+    const route =
+      await Cesium.GeoJsonDataSource.load(
+        url,
+        {
+          clampToGround:true
+        }
+      )
+
+
+    viewer.dataSources.add(route)
+    // 新增：默认隐藏新增路线
+    if(type === 'hiking' || type === 'photo'){
+      route.show = false
+    }
+
+    route.entities.values.forEach(entity=>{
+
+      if(entity.polyline){
+
+        entity.polyline.width = 12
+
+        entity.polyline.material =
+          color
+
+      }
+
+    })
+
+
+    //保存路线对象
+    if(type === 'hiking'){
+      hikingRouteLayer = route
+    }
+
+
+    if(type === 'photo'){
+      photoRouteLayer = route
+    }
+
+
+    console.log(
+      '✅ '+name+'加载成功'
+    )
+
+
+  }catch(error){
+
+    console.error(
+      name+'加载失败:',
+      error
+    )
+
+  }
+
+}
+
+
+// 不回头极限徒步线路
+loadRouteGeoJSON(
+  '/data/不回头极限徒步线路.json',
+  '不回头极限徒步线路',
+  Cesium.Color.ORANGE.withAlpha(0.9),
+  'hiking'
+)
+
+
+// 拍照浏览景点线路
+loadRouteGeoJSON(
+  '/data/拍照浏览景点线路.json',
+  '拍照浏览景点线路',
+  Cesium.Color.BLUE.withAlpha(0.9),
+  'photo'
+)
+
   // 加载 GPX 路线轨迹
   try {
     rawGpx1 = await Cesium.GpxDataSource.load('/data/上方山路线.gpx')
@@ -313,15 +453,15 @@ onMounted(async () => {
     console.error('❌ 上行路线加载失败', error)
   }
 
-  try {
-    rawGpx2 = await Cesium.GpxDataSource.load('/data/上方山路线2.gpx')
-    route2Positions = getRoutePositions(rawGpx2)
-    console.log('✅ 下行路线加载成功，轨迹点数量：', route2Positions.length)
-  } catch (error) {
-    console.error('❌ 下行路线加载失败', error)
-  }
+  // try {
+  //   rawGpx2 = await Cesium.GpxDataSource.load('/data/上方山路线2.gpx')
+  //   route2Positions = getRoutePositions(rawGpx2)
+  //   console.log('✅ 下行路线加载成功，轨迹点数量：', route2Positions.length)
+  // } catch (error) {
+  //   console.error('❌ 下行路线加载失败', error)
+  // }
 
-  // 默认渲染路线1
+  // 默认渲染主路线
   if (route1Positions.length > 0) {
     routeLineEntity = viewer.entities.add({
       polyline: {
@@ -387,12 +527,12 @@ onMounted(async () => {
 
 /* 坡度：与路线选择间隔 20px */
 .slope-panel {
-  top: 428px;
+  top: 520px;
 }
 
 /* 坡度图例：与坡度面板间隔 20px */
 .slope-legend {
-  top: 650px;
+  top: 740px;
   left: 20px;
   min-width: 170px;
   padding: 14px 18px;
