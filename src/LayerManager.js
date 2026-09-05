@@ -1,15 +1,17 @@
 import * as Cesium from 'cesium'
 
+// 1. 图层配置： steps、cable、rest 属性中指定对应的 PNG 图标
 export const layerConfigs = [
   { id: 'poi', name: '景点', url: '/data/mock_poi.geojson', visible: true, dataSource: null },
-  { id: 'steps', name: '台阶', url: '/data/steps.geojson', visible: true, dataSource: null, color: '#FF9500' },
-  { id: 'cable', name: '缆车', url: '/data/cable.geojson', visible: true, dataSource: null, color: '#007AFF', clampToGround: false },
-  { id: 'rest', name: '休息点', url: '/data/rest.geojson', visible: true, dataSource: null }
+  { id: 'steps', name: '台阶', url: '/data/steps.geojson', visible: true, dataSource: null, color: '#FF9500', icon: '/data/台阶.png' },
+  { id: 'cable', name: '缆车', url: '/data/cable.geojson', visible: true, dataSource: null, color: '#007AFF', clampToGround: false, icon: '/data/缆车.png' },
+  { id: 'rest', name: '休息点', url: '/data/rest.geojson', visible: true, dataSource: null, icon: '/data/休息点.png' }
 ]
 
 let globalPointDataSource = null
 let dotIconCache = null
-const bubbleCache = new Map() // 缓存画好的原始气泡，避免重复绘制
+const bubbleCache = new Map() // 缓存景点带字气泡
+const combinedIconCache = new Map() // 缓存带底框的 PNG 合成图标，避免重复绘制
 
 /**
  * 初始化 GeoJSON 图层
@@ -20,10 +22,10 @@ export async function initGeoJsonLayers(viewer) {
   globalPointDataSource = new Cesium.CustomDataSource('global_points')
   await viewer.dataSources.add(globalPointDataSource)
 
-  // 关闭 Cesium 原生聚合（改用高低视角图标切换）
+  // 关闭 Cesium 原生聚合
   globalPointDataSource.clustering.enabled = false
 
-  // 生成高视角下的不带文字透明气泡图标
+  // 生成高视角下的不带文字透明小气泡图标
   dotIconCache = createDotCanvas()
 
   // 2. 遍历加载所有 GeoJSON 图层
@@ -38,6 +40,17 @@ export async function initGeoJsonLayers(viewer) {
         strokeWidth: 4
       })
 
+      // 预先合成并缓存当前图层的带底框图标（提升批处理性能）
+      let layerCombinedIcon = null
+      if (layer.icon) {
+        if (!combinedIconCache.has(layer.icon)) {
+          // 第二个参数 28 表示中间图标的显示大小(px)，可以根据需要自行微调
+          const synthesized = await createIconWithBackground(layer.icon, 28)
+          combinedIconCache.set(layer.icon, synthesized)
+        }
+        layerCombinedIcon = combinedIconCache.get(layer.icon)
+      }
+
       const pointEntitiesToRemove = []
 
       for (const entity of ds.entities.values) {
@@ -50,35 +63,40 @@ export async function initGeoJsonLayers(viewer) {
           const pos = entity.position.getValue(Cesium.JulianDate.now())
 
           if (pos) {
-            // 获取/绘制最原始样式的气泡图片（带文字）
-            if (!bubbleCache.has(poiName)) {
-              bubbleCache.set(poiName, drawOriginalBubble(poiName))
+            let targetImg = null
+
+            // 分支处理：如果有配置 icon（台阶、缆车、休息点），使用 Canvas 合成后的带底框图标
+            if (layerCombinedIcon) {
+              targetImg = layerCombinedIcon
+            } else {
+              // 景点（poi）保持使用 Canvas 动态绘制的带名称文字气泡
+              if (!bubbleCache.has(poiName)) {
+                bubbleCache.set(poiName, drawOriginalBubble(poiName))
+              }
+              targetImg = bubbleCache.get(poiName)
             }
-            const originalBubbleImg = bubbleCache.get(poiName)
 
             // 创建新的点位实体并加入全局统一的数据源
             const newPointEntity = globalPointDataSource.entities.add({
-              name: poiName, // 设置实体名称（显示在弹窗标题栏）
+              name: poiName,
               position: pos,
               layerId: layer.id,
-              show: layer.visible, // 根据图层的 visible 状态设置显隐
-              properties: entity.properties, // 保留原始属性
+              show: layer.visible,
+              properties: entity.properties,
               billboard: {
-                image: originalBubbleImg,
+                image: targetImg,
                 verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
                 heightReference: isClamp ? Cesium.HeightReference.CLAMP_TO_GROUND : Cesium.HeightReference.NONE,
                 disableDepthTestDistance: Number.POSITIVE_INFINITY
               },
-              // 自定义属性，保存近距离气泡图（带文字）与高空无字气泡图供相机事件切换使用
-              _bubbleImg: originalBubbleImg,
-              _dotImg: dotIconCache
+              // 保存近距离与高空视角图标供相机事件切换
+              _bubbleImg: targetImg,
+              _dotImg: layer.icon ? targetImg : dotIconCache // 若想图标在远视角也变成统一白色小圆点，可改成 dotIconCache
             })
 
-            // 为新生成的实体格式化并注入 description HTML 属性
             formatEntityDescription(newPointEntity)
           }
 
-          // 标记原始点位待删除（避免与 line 重复或留在原始 ds 中）
           pointEntitiesToRemove.push(entity)
         } 
         // --- 处理线段 ---
@@ -102,8 +120,8 @@ export async function initGeoJsonLayers(viewer) {
     }
   }
 
-  // 3. 监听相机高度，按视角动态切换图标样式（高视角无字气泡 vs 低视角文字气泡）
-  const switchThreshold = 1000 // 高度阈值（米）：高于 1000 米显示小气泡，低于 1000 米显示带字大气泡
+  // 3. 监听相机高度按视角切换图标样式（高视角小气泡 vs 低视角带图/带字气泡）
+  const switchThreshold = 1000
 
   const updateMarkersByDistance = () => {
     const cameraHeight = viewer.camera.positionCartographic.height
@@ -117,23 +135,84 @@ export async function initGeoJsonLayers(viewer) {
         
         if (entity.billboard.image._value !== targetImg) {
           entity.billboard.image = targetImg
-          // 两种气泡图锚点统一设在底部
           entity.billboard.verticalOrigin = Cesium.VerticalOrigin.BOTTOM
         }
       }
     }
   }
 
-  // 绑定相机改变事件
   viewer.camera.changed.addEventListener(updateMarkersByDistance)
-  viewer.camera.percentageChanged = 0.05 // 相机位置改变 5% 触发一次更新，提升性能
+  viewer.camera.percentageChanged = 0.05
   
-  // 初始化加载时主动检查一次
   updateMarkersByDistance()
 }
 
 /**
- * 绘制最原始版本的圆角气泡框 Canvas（近距离带有名称文字）
+ * 【关键函数】将透明 PNG 图标与白色圆角底框实时合成
+ * @param {string} iconUrl PNG 图标路径
+ * @param {number} iconSize 内部 PNG 图标绘制像素尺寸
+ */
+function createIconWithBackground(iconUrl, iconSize = 28) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.src = iconUrl
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+
+      const padding = 8 // 图标四周的留白宽度
+      const boxWidth = iconSize + padding * 2
+      const boxHeight = iconSize + padding * 2
+      const arrowHeight = 6 // 底部小尖角高度
+
+      canvas.width = boxWidth
+      canvas.height = boxHeight + arrowHeight
+
+      // 1. 绘制底框背景与轻微阴影效果
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.92)'
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.25)'
+      ctx.shadowBlur = 8
+      ctx.shadowOffsetY = 3
+
+      const x = 0.5, y = 0.5, w = boxWidth - 1, h = boxHeight - 1, r = 10
+
+      ctx.beginPath()
+      ctx.moveTo(x + r, y)
+      ctx.lineTo(x + w - r, y)
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+      ctx.lineTo(x + w, y + h - r)
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+
+      // 绘制底部指向小尖角
+      const centerX = boxWidth / 2
+      ctx.lineTo(centerX + 5, y + h)
+      ctx.lineTo(centerX, y + h + arrowHeight)
+      ctx.lineTo(centerX - 5, y + h)
+
+      ctx.lineTo(x + r, y + h)
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+      ctx.lineTo(x, y + r)
+      ctx.quadraticCurveTo(x, y, x + r, y)
+      ctx.closePath()
+      ctx.fill()
+
+      // 2. 清除阴影（防止图标本身产生重复重叠阴影），绘制图标
+      ctx.shadowColor = 'transparent'
+      ctx.drawImage(img, padding, padding, iconSize, iconSize)
+
+      resolve(canvas.toDataURL('image/png'))
+    }
+
+    // 图片加载失败降级方案：直接返回原 URL
+    img.onerror = () => {
+      console.warn(`[图片加载失败] ${iconUrl}，使用原始图片渲染`)
+      resolve(iconUrl)
+    }
+  })
+}
+
+/**
+ * 绘制最原始版本的圆角气泡框 Canvas（景点近距离使用）
  */
 function drawOriginalBubble(text) {
   const canvas = document.createElement('canvas')
@@ -143,15 +222,14 @@ function drawOriginalBubble(text) {
   ctx.font = fontStyle
   const textMetrics = ctx.measureText(text)
 
-  const paddingX = 24  // 左右 padding
+  const paddingX = 24
   const width = Math.ceil(textMetrics.width + paddingX * 2)
-  const height = 46    // 气泡主体高度
-  const arrowHeight = 8 // 下方小尖角高度
+  const height = 46
+  const arrowHeight = 8
 
   canvas.width = width
   canvas.height = height + arrowHeight
 
-  // 绘制白色半透明圆角背景与阴影
   ctx.fillStyle = 'rgba(255, 255, 255, 0.60)'
   ctx.shadowColor = 'rgba(0, 0, 0, 0.28)'
   ctx.shadowBlur = 10
@@ -166,7 +244,6 @@ function drawOriginalBubble(text) {
   ctx.lineTo(x + w, y + h - r)
   ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
 
-  // 底部小尖角
   const centerX = width / 2
   ctx.lineTo(centerX + 7, y + h)
   ctx.lineTo(centerX, y + h + arrowHeight)
@@ -179,7 +256,6 @@ function drawOriginalBubble(text) {
   ctx.closePath()
   ctx.fill()
 
-  // 绘制文本
   ctx.shadowColor = 'transparent'
   ctx.fillStyle = '#1c1c1e'
   ctx.font = fontStyle
@@ -195,7 +271,6 @@ function drawOriginalBubble(text) {
  */
 function createDotCanvas() {
   const canvas = document.createElement('canvas')
-  // 适合无文字微型气泡的尺寸
   const width = 28
   const height = 20
   const arrowHeight = 5
@@ -204,7 +279,6 @@ function createDotCanvas() {
   canvas.height = height + arrowHeight
   const ctx = canvas.getContext('2d')
 
-  // 绘制白色半透明圆角背景与轻微阴影
   ctx.fillStyle = 'rgba(255, 255, 255, 0.85)'
   ctx.shadowColor = 'rgba(0, 0, 0, 0.2)'
   ctx.shadowBlur = 6
@@ -219,7 +293,6 @@ function createDotCanvas() {
   ctx.lineTo(x + w, y + h - r)
   ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
 
-  // 底部小尖角
   const centerX = width / 2
   ctx.lineTo(centerX + 4, y + h)
   ctx.lineTo(centerX, y + h + arrowHeight)
@@ -252,7 +325,7 @@ export function toggleLayerVisibility(layer) {
 }
 
 /**
- * 格式化实体的描述面板 HTML 内容（控制点击弹窗显示）
+ * 格式化实体的描述面板 HTML 内容
  */
 function formatEntityDescription(entity) {
   const properties = entity.properties
