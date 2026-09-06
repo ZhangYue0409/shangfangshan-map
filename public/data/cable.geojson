@@ -10,7 +10,6 @@
       "properties": {
         "name": "缆车",
         "description": "缆车起始点。",
-        "image_urls": ["/images/spots/gate_1.jpg"],
         "avg_slope": "12.5°"
       }
     }
