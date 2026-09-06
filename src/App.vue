@@ -96,9 +96,22 @@
         <span>＞20° 陡坡</span>
       </div>
     </div>
+
+    <!--路线介绍弹窗-->
+    <div v-if="showRoutePopup" class="route-intro-popup">
+      <div class="popup-header">
+        <span class="popup-title">{{popupData.title}}</span>
+        <span class="popup-close" @click="showRoutePopup=false">×</span>
+      </div>
+      <div class="popup-body">
+        <p>{{popupData.content}}</p>
+      </div>
+    </div>
+
     <div id="cesium-container"></div>
   </div>
 </template>
+
 <script setup>
 import { onMounted, ref } from 'vue'
 import * as Cesium from 'cesium'
@@ -116,7 +129,6 @@ let route1Positions = []
 // 分段存储geojson多段轨迹
 let hikingSegments = []
 let photoSegments = []
-
 // 自己手动创建的路线实体
 let routeLineEntity = null
 let flightInProgress = false
@@ -128,11 +140,35 @@ let slopeLayerList = []
 let hikingRouteLayer = null
 let photoRouteLayer = null
 
+//弹窗变量
+const showRoutePopup = ref(false)
+const popupData = ref({title:'',content:''})
+//路线描述，自行修改文字
+const routeDescMap = {
+  route1:{
+    title:'主路线',
+    content:'主路线：全长8.2km，台阶较多，沿途设置多处休息点，适合大多数游客，可乘坐缆车上下，全程耗时约3‑4小时。'
+  },
+  hiking:{
+    title:'不回头极限徒步路线',
+    content:'不回头极限徒步路线：全程12km，大坡度，无缆车，体力消耗大，建议专业徒步爱好者选择。'
+  },
+  photo:{
+    title:'拍照浏览景点路线',
+    content:'拍照浏览景点路线：沿途覆盖核心观景打卡点，路程适中，适合拍照游览。'
+  }
+}
+
+//打开弹窗公共方法
+function openPopup(routeKey){
+  popupData.value = routeDescMap[routeKey]
+  showRoutePopup.value = true
+}
+
 // 图层显隐开关响应函数
 function handleLayerToggle(layer) {
   toggleLayerVisibility(layer)
 }
-
 // 修复API不存在报错函数
 function headingFromPoints(pointA, pointB) {
   const cartoA = Cesium.Cartographic.fromCartesian(pointA)
@@ -141,10 +177,10 @@ function headingFromPoints(pointA, pointB) {
   const deltaLat = cartoB.latitude - cartoA.latitude
   return Math.atan2(deltaLon, deltaLat)
 }
-
 // 关闭全部路线：只关闭路线实体，不销毁坡度图层
 function closeAllRoute(){
   currentRoute.value = null
+  showRoutePopup.value = false
   if(routeLineEntity){
     viewer.entities.remove(routeLineEntity)
     routeLineEntity = null
@@ -159,23 +195,22 @@ function closeAllRoute(){
   }
   console.log('✅ 已关闭所有原始路线，坡度图层保留')
 }
-
 function showHikingRoute(){
   closeAllRoute()
   currentRoute.value = 'hiking'
   if(hikingRouteLayer){
     hikingRouteLayer.show=true
   }
+  openPopup('hiking') //点击直接弹出弹窗
 }
-
 function showPhotoRoute(){
   closeAllRoute()
   currentRoute.value = 'photo'
   if(photoRouteLayer){
     photoRouteLayer.show=true
   }
+  openPopup('photo') //点击直接弹出弹窗
 }
-
 // 切换路线
 function switchRoute(route) {
   // 隐藏新增GeoJSON路线
@@ -188,7 +223,7 @@ function switchRoute(route) {
   slopeTarget.value = 'off'
   destroySlopeLayer()
   showSlopeLegend.value = false
-  if (currentRoute.value === route) return
+
   currentRoute.value = route
   if (flightInProgress && typeof flightStopCallback === 'function') {
     flightStopCallback()
@@ -209,8 +244,8 @@ function switchRoute(route) {
     })
     console.log('✅ 切换到上行路线')
   }
+  openPopup(route) //点击直接弹出弹窗
 }
-
 // 销毁坡度图层（多段全部销毁）
 function destroySlopeLayer() {
   slopeLayerList.forEach(layer=>{
@@ -219,7 +254,6 @@ function destroySlopeLayer() {
   slopeLayerList = []
   showSlopeLegend.value = false
 }
-
 // 坡度图层切换
 async function setSlopeLayer(mode){
   destroySlopeLayer()
@@ -235,7 +269,6 @@ async function setSlopeLayer(mode){
   }else if(mode === 'photo'){
     segmentList = photoSegments
   }
-
   if(!segmentList || segmentList.length ===0){
     alert('该路线轨迹数据尚未加载完成！')
     slopeTarget.value = 'off'
@@ -254,7 +287,6 @@ async function setSlopeLayer(mode){
     slopeTarget.value = 'off'
   }
 }
-
 // 提取GPX轨迹点
 function getRoutePositions(dataSource) {
   const positions = []
@@ -269,7 +301,6 @@ function getRoutePositions(dataSource) {
   })
   return positions
 }
-
 onMounted(async () => {
   const tokenA = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiZGE3MjZkNS0xMWI4LTRkZDgtOWM3Mi0xM2IzOWY3YzVkZWQiLCJpZCI6NDYwMzg2LCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODQ5NzM3MDd9.s-BE-b8z00JBBx7UQHEfqwHsuG2gGET2FOCu-A7bF2o'
   const tokenB = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJkODliZDAyMi1mNzY2LTQwMmYtOTNjNi1lOGY5OGYzMjQ4YmUiLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODUwNjg5OTJ9.snV-HHPbKFHGnIL0nWyCtIklA8JEi9mtmVXSxxxzZKU'
@@ -319,7 +350,6 @@ onMounted(async () => {
   await initInteraction(viewer)
   // 初始化并发异步加载 4 个 GeoJSON 图层
   await initGeoJsonLayers(viewer)
-
 async function loadRouteGeoJSON(
   url,
   name,
@@ -363,7 +393,6 @@ async function loadRouteGeoJSON(
     console.error(name+'加载失败:', error)
   }
 }
-
 // 不回头极限徒步线路
 loadRouteGeoJSON(
   '/data/不回头极限徒步线路.json',
@@ -378,7 +407,6 @@ loadRouteGeoJSON(
   Cesium.Color.BLUE.withAlpha(0.9),
   'photo'
 )
-
   // 加载 GPX 路线轨迹
   try {
     rawGpx1 = await Cesium.GpxDataSource.load('/data/上方山路线.gpx')
@@ -387,7 +415,6 @@ loadRouteGeoJSON(
   } catch (error) {
     console.error('❌ 上行路线加载失败', error)
   }
-
   // 默认渲染主路线
   if (route1Positions.length > 0) {
     routeLineEntity = viewer.entities.add({
@@ -402,6 +429,7 @@ loadRouteGeoJSON(
   window.viewer = viewer
 })
 </script>
+
 <style scoped>
 #cesium-container {
   width: 100vw;
@@ -549,5 +577,48 @@ loadRouteGeoJSON(
 }
 .color-block.red {
   background-color: #ff2222;
+}
+
+.route-intro-popup{
+  position:absolute;
+  z-index:200;
+  left:220px;
+  top:220px;
+  width:320px;
+  box-sizing: border-box;
+  background: rgba(18, 18, 22, 0.45);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border:1px solid rgba(255,255,255,0.25);
+  border-radius:20px;
+  overflow:hidden;
+  color:#fff;
+  box-shadow:0 16px 36px rgba(0,0,0,0.35);
+}
+.popup-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:12px 18px;
+  background:rgba(255,255,255,0.05);
+  border-bottom:1px solid rgba(255,255,255,0.15);
+}
+.popup-title{
+  font-size:16px;
+  font-weight:700;
+}
+.popup-close{
+  cursor:pointer;
+  font-size:22px;
+  opacity:0.75;
+}
+.popup-close:hover{
+  opacity:1;
+}
+.popup-body{
+  padding:16px 18px;
+  font-size:14px;
+  line-height:1.7;
+  color:rgba(255,255,255,0.92);
 }
 </style>
