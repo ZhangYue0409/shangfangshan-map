@@ -104,7 +104,7 @@ import { onMounted, ref } from 'vue'
 import * as Cesium from 'cesium'
 import { initInteraction } from './interaction.js'
 import { createSlopeLayer } from './slopeLayer.js'
-import { layerConfigs, initGeoJsonLayers, toggleLayerVisibility } from './layerManager.js'
+import { layerConfigs, initGeoJsonLayers, toggleLayerVisibility } from './LayerManager.js'
 const currentRoute = ref('route1')
 // 坡度图层状态
 const slopeTarget = ref('off')
