@@ -9,12 +9,30 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@alicloud/openapi-client": "^0.4.15",
+    "axios": "^1.20.0",
     "cesium": "^1.143.0",
+    "cors": "^2.8.6",
+    "dashscope": "^1.0.1",
+    "express": "^5.2.1",
     "vite-plugin-cesium": "^1.2.23",
     "vue": "^3.5.39"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.7",
     "vite": "^8.1.1"
-  }
+  },
+  "description": "This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.",
+  "main": "vite.config.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZhangYue0409/shangfangshan-map.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ZhangYue0409/shangfangshan-map/issues"
+  },
+  "homepage": "https://github.com/ZhangYue0409/shangfangshan-map#readme"
 }
