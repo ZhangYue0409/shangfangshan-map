@@ -10,8 +10,7 @@
       "properties": {
         "name": "上方山国家森林公园入口",
         "description": "上方山国家森林公园位于北京市房山区，以“九洞十二峰”著称，森林覆盖率高，是天然氧吧。",
-        "image_urls": ["/images/spots/gate_1.jpg"],
-        "avg_slope": "12.5°"
+        "image_urls": ["/images/spots/gate_1.jpg"]
       }
     },
     {
@@ -27,8 +26,7 @@
           "/images/spots/doushuaisi_1.jpg",
           "/images/spots/doushuaisi_2.jpg",
           "/images/spots/doushuaisi_3.jpg"
-        ],
-        "avg_slope": "18.2°"
+        ]
       }
     },
     {
@@ -43,8 +41,7 @@
         "image_urls": [
           "/images/spots/qinglongquan_1.jpg",
           "/images/spots/qinglongquan_2.jpg"
-        ],
-        "avg_slope": "31.0°"
+        ]
       }
     },
     {
@@ -56,8 +53,29 @@
       "properties": {
         "name": "天坑",
         "description": "上方山天坑（别名旱龙潭），是我国北方首次发现的天坑，属于喀斯特崩塌漏斗地貌。坑深约71米，坑口直径约30米，坑底直径约61米，形状像一个倒立的喇叭。早年这里是一汪深水潭，叫旱龙潭；后来地下溶洞塌陷，潭水全部流入地下暗河，积水消失，就成了现在的天坑。坑壁布满钟乳石和崩塌碎石，坑底湿度大、光照特殊，长出一套和山上别处不同的植物，此处还曾发现过古生物化石，是珍贵的地质观察点。",
-        "image_urls": ["/images/spots/tiankeng.jpg"],
-        "avg_slope": "24.8°"
+        "image_urls": ["/images/spots/tiankeng.jpg"]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [115.8288, 39.6756, 426.7]
+      },
+      "properties": {
+        "name": "瓣香庵",
+        "description": "上方山七十二庵之一，也是进入兜率寺山门后遇到的第一处古庵。建筑保存相对完好，院落格局完整，红墙灰瓦古意浓厚。庵外留存金代石幢遗迹，历史悠久，院内环境清幽，是探访山中古建的重要点位。"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [115.8271, 39.6708, 426.7]
+      },
+      "properties": {
+        "name": "南无地藏王菩萨庙",
+        "description": "位于百步云梯的入口处，是登山途中的标志性小型庙宇建筑。庙宇亭廊小巧，供奉地藏王菩萨，亭柱刻有“地狱不空誓不成佛”知名楹联，是游客登山途中常会驻足的人文小景点。"
       }
     }
   ]

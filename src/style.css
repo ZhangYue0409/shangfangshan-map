@@ -9,31 +9,26 @@
 }
 
 /* =========================================================
- * 2. 弹窗主框体：适度缩小宽度与高度
+ * 2. 弹窗主框体：改为自适应高度 (Fit-content)
  * ========================================================= */
 .cesium-infoBox {
   pointer-events: auto;
   width: 460px !important;
   max-width: 90vw !important;
-
-  /* 🌟 核心修改：强制把弹窗高度设为 75vh，不再使用 auto */
-  height: 75vh !important;
-  min-height: 500px !important;
-
-  /* 高透 Apple 毛玻璃外观 */
+  height: fit-content;            /* 移除 !important，方便 JS 动态覆盖 */
+  max-height: 75vh !important;
+  
   background: rgba(18, 18, 22, 0.35) !important;
   -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
   backdrop-filter: blur(20px) saturate(180%) !important;
-  
   border: 1px solid rgba(255, 255, 255, 0.25) !important;
   border-radius: 20px !important;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35),
-              inset 0 1px 1px rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.3) !important;
   overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition: height 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* 高度变化过渡动画 */
 }
 
-/* 🌟 确保标题栏高度写死 60px */
+/* 确保标题栏高度固定 60px */
 .cesium-infoBox-title {
   background: rgba(255, 255, 255, 0.05) !important;
   color: #ffffff !important;
@@ -56,10 +51,10 @@
   position: relative !important;
 }
 
-/* 🌟 关闭按钮同步缩小定位 */
+/* 关闭按钮定位 */
 .cesium-infoBox-close {
   position: absolute !important;
-  top: 14px !important;            /* (60px 标题栏 - 32px 按钮) / 2 = 14px 居中 */
+  top: 14px !important;
   right: 16px !important;
   width: 32px !important;
   height: 32px !important;
@@ -73,12 +68,11 @@
   background: rgba(255, 255, 255, 0.35) !important;
 }
 
-/* 🌟 核心修改：允许 iframe 响应滚轮滑动与鼠标点击 */
 .cesium-infoBox-iframe {
   background: transparent !important;
   border: none !important;
   width: 100% !important;
   height: calc(100% - 60px) !important;
   display: block !important;
-  pointer-events: auto !important; /* 确保鼠标事件可以穿透进 iframe 触发滑动 */
+  pointer-events: auto !important;
 }

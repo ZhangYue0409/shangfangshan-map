@@ -9,8 +9,7 @@
       },
       "properties": {
         "name": "缆车",
-        "description": "缆车起始点。",
-        "avg_slope": "12.5°"
+        "description": "缆车起始点。"
       }
     }
   ]

@@ -9,8 +9,7 @@
       },
       "properties": {
         "name": "休息点1",
-        "description": "休息点一",
-        "avg_slope": "12.5°"
+        "description": "休息点一"
       }
     },
     {
@@ -21,8 +20,7 @@
       },
       "properties": {
         "name": "休息点2",
-        "description": "休息点二（长椅）",
-        "avg_slope": "12.5°"
+        "description": "休息点二（长椅）"
       }
     },
     {
@@ -33,8 +31,7 @@
       },
       "properties": {
         "name": "休息点3",
-        "description": "石头平台",
-        "avg_slope": "12.5°"
+        "description": "石头平台"
       }
     },
     {
@@ -45,8 +42,7 @@
       },
       "properties": {
         "name": "休息点4",
-        "description": "休息点四",
-        "avg_slope": "12.5°"
+        "description": "休息点四"
       }
     },
     {
@@ -57,8 +53,7 @@
       },
       "properties": {
         "name": "休息点5",
-        "description": "休息点五",
-        "avg_slope": "12.5°"
+        "description": "休息点五"
       }
     }
   ]
