@@ -49,36 +49,6 @@
         </label>
       </div>
     </div>
-    <!-- 坡度查看控制面板 -->
-    <div class="control-panel slope-panel">
-      <div class="panel-title">坡度</div>
-      <div class="route-buttons">
-        <button
-          :class="['route-btn', { active: slopeTarget === 'off' }]"
-          @click="setSlopeLayer('off')"
-        >
-          关闭坡度
-        </button>
-        <button
-          :class="['route-btn', { active: slopeTarget === 'route1' }]"
-          @click="setSlopeLayer('route1')"
-        >
-          主路线坡度
-        </button>
-        <button
-          :class="['route-btn', { active: slopeTarget === 'hiking' }]"
-          @click="setSlopeLayer('hiking')"
-        >
-          极限徒步坡度
-        </button>
-        <button
-          :class="['route-btn', { active: slopeTarget === 'photo' }]"
-          @click="setSlopeLayer('photo')"
-        >
-          浏览景点坡度
-        </button>
-      </div>
-    </div>
     <!-- 坡度图例 -->
     <div v-if="showSlopeLegend" class="slope-legend">
       <div class="legend-title">坡度图例</div>
@@ -95,11 +65,15 @@
         <span>＞20° 陡坡</span>
       </div>
     </div>
-    <!-- 路线介绍弹窗【修改：增加图表容器】 -->
+    <!-- 路线介绍弹窗：三条路线均显示查看坡度、关闭坡度按钮 -->
     <div v-if="showRoutePopup" class="route-intro-popup">
       <div class="popup-header">
         <span class="popup-title">{{ popupData.title }}</span>
-        <span class="popup-close" @click="closePopup">×</span>
+        <div class="popup-header-right">
+          <button class="view‑slope‑btn" @click="handleViewSlope">查看坡度</button>
+          <button class="close‑slope‑btn" @click="handleCloseSlope">关闭坡度</button>
+          <span class="popup-close" @click="closePopup">×</span>
+        </div>
       </div>
       <div class="popup-body">
         <p>{{ popupData.content }}</p>
@@ -146,7 +120,6 @@ let photoRouteLayer = null
 // 路线弹窗变量
 const showRoutePopup = ref(false)
 const popupData = ref({ title: '', content: '', profileData: null })
-
 const routeDescMap = {
   route1: {
     title: '主路线',
@@ -243,7 +216,6 @@ async function openPopup(routeKey) {
   if(routeKey === 'route1') usePositions = route1Positions
   if(routeKey === 'hiking' && hikingSegments.length>0) usePositions = hikingSegments[0]
   if(routeKey === 'photo' && photoSegments.length>0) usePositions = photoSegments[0]
-
   // 坐标有效，采样地形计算剖面
   if(usePositions && usePositions.length >=2 && viewer.value){
     try{
@@ -257,6 +229,20 @@ async function openPopup(routeKey) {
     profileData
   }
   showRoutePopup.value = true
+}
+
+/**
+ * 弹窗按钮：查看当前打开路线的坡度
+ */
+async function handleViewSlope(){
+  await setSlopeLayer(currentRoute.value)
+}
+
+/**
+ * 弹窗按钮：关闭坡度
+ */
+function handleCloseSlope(){
+  setSlopeLayer('off')
 }
 
 /**
@@ -278,6 +264,8 @@ function handleLayerToggle(layer) {
 function closeAllRoute() {
   closePopup()
   currentRoute.value = null
+  destroySlopeLayer()
+  slopeTarget.value = 'off'
   if (routeLineEntity) {
     viewer.value.entities.remove(routeLineEntity)
     routeLineEntity = null
@@ -340,11 +328,14 @@ function destroySlopeLayer() {
 async function setSlopeLayer(mode) {
   destroySlopeLayer()
   slopeTarget.value = mode
-  if (mode === 'off') return
+  if (mode === 'off') {
+    return
+  }
   let segmentList = []
   if (mode === 'route1') segmentList = [route1Positions]
   else if (mode === 'hiking') segmentList = hikingSegments
   else if (mode === 'photo') segmentList = photoSegments
+
   if (!segmentList || segmentList.length === 0) {
     alert('该路线轨迹数据尚未加载完成！')
     slopeTarget.value = 'off'
@@ -379,7 +370,6 @@ function getRoutePositions(dataSource) {
 onMounted(async () => {
   const tokenA = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiZGE3MjZkNS0xMWI4LTRkZDgtOWM3Mi0xM2IzOWY3YzVkZWQiLCJpZCI6NDYwMzg2LCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODQ5NzM3MDd9.s-BE-b8z00JBBx7UQHEfqwHsuG2gGET2FOCu-A7bF2o'
   const tokenB = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJkODliZDAyMi1mNzY2LTQwMmYtOTNjNi1lOGY5OGYzMjQ4YmUiLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODUwNjg5OTJ9.snV-HHPbKFHGnIL0nWyCtIklA8JEi9mtmVXSxxxzZKU'
-
   Cesium.Ion.defaultAccessToken = tokenA
   const terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(5091409, {
     accessToken: tokenA
@@ -519,11 +509,8 @@ onBeforeUnmount(()=>{
   min-width: 170px;
   padding: 16px 18px;
 }
-.slope-panel {
-  top: 475px;
-}
 .slope-legend {
-  top: 730px;
+  top: 475px;
   left: 20px;
   min-width: 170px;
   padding: 14px 18px;
@@ -626,6 +613,35 @@ onBeforeUnmount(()=>{
   padding: 12px 18px;
   background: rgba(255, 255, 255, 0.05);
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+.popup-header-right {
+  display: flex;
+  align-items: center;
+  gap:12px;
+}
+.view‑slope‑btn{
+  padding:4px 10px;
+  border-radius:6px;
+  border:1px solid rgba(212,165,116,0.6);
+  background:rgba(212,165,116,0.22);
+  color:#fff;
+  font-size:13px;
+  cursor:pointer;
+}
+.view‑slope‑btn:hover{
+  background:rgba(212,165,116,0.45);
+}
+.close‑slope‑btn{
+  padding:4px 10px;
+  border-radius:6px;
+  border:1px solid rgba(255,120,120,0.6);
+  background:rgba(255,120,120,0.22);
+  color:#fff;
+  font-size:13px;
+  cursor:pointer;
+}
+.close‑slope‑btn:hover{
+  background:rgba(255,120,120,0.45);
 }
 .popup-body {
   padding: 16px 18px;
