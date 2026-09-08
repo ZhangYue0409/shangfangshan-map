@@ -76,17 +76,13 @@ class GameManager {
 
       if (this.isGameMode) {
         // 清空默认生成的 billboard (蓝色方框) 和 point (圆点)
-        entity.billboard = undefined
         entity.point = undefined
+        entity.label = undefined
 
-        // 🎮 游戏模式：只显示单独的 ❓ 或 ✅
-        entity.label = new Cesium.LabelGraphics({
-          text: isCompleted ? '✅' : '❓',
-          font: 'bold 28px sans-serif',
-          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          fillColor: Cesium.Color.WHITE,
-          outlineColor: Cesium.Color.BLACK,
-          outlineWidth: 2,
+        // 🎮 游戏模式
+        entity.billboard = new Cesium.BillboardGraphics({
+          image: isCompleted ? '/images/Image14_37_33.png' : '/images/Image14_35_01.png', // 替换为你存放图片的路径
+          scale: 0.04, // 图片缩放比例，可根据实际图片大小调整
           horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
           verticalOrigin: Cesium.VerticalOrigin.CENTER,
           heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
