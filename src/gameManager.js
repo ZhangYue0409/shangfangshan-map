@@ -81,8 +81,8 @@ class GameManager {
 
         // 🎮 游戏模式
         entity.billboard = new Cesium.BillboardGraphics({
-          image: isCompleted ? '/images/Image14_37_33.png' : '/images/Image14_35_01.png', // 替换为你存放图片的路径
-          scale: 0.04, // 图片缩放比例，可根据实际图片大小调整
+          image: isCompleted ? '/images/2.jpg' : '/images/1.png', // 替换为你存放图片的路径
+          scale: 0.035, // 图片缩放比例，可根据实际图片大小调整
           horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
           verticalOrigin: Cesium.VerticalOrigin.CENTER,
           heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
