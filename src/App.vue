@@ -1,4 +1,3 @@
-<!-- src/App.vue -->
 <template>
   <div>
     <!-- 路线选择控制面板 -->
@@ -31,7 +30,6 @@
         </button>
       </div>
     </div>
-
     <!-- 图层显隐控制面板 -->
     <div class="layer-control-panel">
       <div class="panel-title">图层控制</div>
@@ -51,7 +49,6 @@
         </label>
       </div>
     </div>
-
     <!-- 坡度查看控制面板 -->
     <div class="control-panel slope-panel">
       <div class="panel-title">坡度</div>
@@ -82,7 +79,6 @@
         </button>
       </div>
     </div>
-
     <!-- 坡度图例 -->
     <div v-if="showSlopeLegend" class="slope-legend">
       <div class="legend-title">坡度图例</div>
@@ -99,29 +95,29 @@
         <span>＞20° 陡坡</span>
       </div>
     </div>
-
-    <!-- 路线介绍弹窗 -->
+    <!-- 路线介绍弹窗【修改：增加图表容器】 -->
     <div v-if="showRoutePopup" class="route-intro-popup">
       <div class="popup-header">
         <span class="popup-title">{{ popupData.title }}</span>
-        <span class="popup-close" @click="showRoutePopup = false">×</span>
+        <span class="popup-close" @click="closePopup">×</span>
       </div>
       <div class="popup-body">
         <p>{{ popupData.content }}</p>
+        <!-- 地形剖面图容器：有剖面数据才显示 -->
+        <div v-if="popupData.profileData" ref="chartRef" class="profile-chart"></div>
       </div>
     </div>
-
     <!-- 引入独立抽离的文化问答游戏组件 -->
     <QuizGame ref="quizGameRef" :viewer="viewer" />
-
     <!-- Cesium 视图容器 -->
     <div id="cesium-container"></div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch, onBeforeUnmount } from 'vue'
 import * as Cesium from 'cesium'
+import * as echarts from 'echarts'
 import { initInteraction } from './interaction.js'
 import { createSlopeLayer } from './slopeLayer.js'
 import { layerConfigs, initGeoJsonLayers, toggleLayerVisibility } from './LayerManager.js'
@@ -131,8 +127,9 @@ const currentRoute = ref('route1')
 const slopeTarget = ref('off')
 const showSlopeLegend = ref(false)
 const viewer = ref(null)
-
 const quizGameRef = ref(null)
+const chartRef = ref(null)
+let chartInstance = null
 
 // GPX 路线与图层状态变量
 let rawGpx1 = null
@@ -148,7 +145,7 @@ let photoRouteLayer = null
 
 // 路线弹窗变量
 const showRoutePopup = ref(false)
-const popupData = ref({ title: '', content: '' })
+const popupData = ref({ title: '', content: '', profileData: null })
 
 const routeDescMap = {
   route1: {
@@ -165,9 +162,113 @@ const routeDescMap = {
   }
 }
 
-function openPopup(routeKey) {
-  popupData.value = routeDescMap[routeKey]
+/**
+ * 高程剖面计算函数，放到App.vue内部
+ */
+async function computeElevationProfile(viewerIns, positions) {
+  const distList = []
+  const elevList = []
+  let totalDist = 0
+  const cartographicArr = positions.map(p => Cesium.Cartographic.fromCartesian(p))
+  await Cesium.sampleTerrainMostDetailed(viewerIns.terrainProvider, cartographicArr)
+  for (let i = 0; i < cartographicArr.length; i++) {
+    const cart = cartographicArr[i]
+    const elev = cart.height
+    elevList.push(elev)
+    if(i>0){
+      const prev = cartographicArr[i-1]
+      totalDist += Cesium.Cartesian3.distance(
+        Cesium.Cartesian3.fromRadians(prev.longitude,prev.latitude),
+        Cesium.Cartesian3.fromRadians(cart.longitude,cart.latitude)
+      )
+    }
+    distList.push(Math.round(totalDist))
+  }
+  return {distList, elevList}
+}
+
+/**
+ * 渲染ECharts剖面图
+ */
+function renderProfileChart(profile){
+  if(!chartRef.value) return
+  if(!chartInstance){
+    chartInstance = echarts.init(chartRef.value)
+  }
+  const {distList, elevList} = profile
+  const seriesData = distList.map((d,i)=>[d, elevList[i]])
+  const option = {
+    title:{text:"路线地形剖面图", left:'center', textStyle:{color:'#fff', fontSize:13}},
+    tooltip:{trigger:'axis'},
+    grid:{left:50, right:10, top:35, bottom:40},
+    xAxis:{
+      name:"行进距离(m)",
+      type:"value",
+      nameTextStyle:{color:'#fff'},
+      axisLabel:{color:'#ccc'}
+    },
+    yAxis:{
+      name:"高程(m)",
+      type:"value",
+      nameTextStyle:{color:'#fff'},
+      axisLabel:{color:'#ccc'}
+    },
+    series:[{
+      type:'line',
+      data:seriesData,
+      areaStyle:{color:"rgba(212,165,116,0.35)"},
+      lineStyle:{color:'#D4A574'}
+    }]
+  }
+  chartInstance.setOption(option)
+}
+
+// 监听profileData变化，渲染图表
+watch(()=>popupData.value.profileData,(val)=>{
+  if(val && showRoutePopup.value){
+    setTimeout(()=>{
+      renderProfileChart(val)
+    },50)
+  }
+},{flush:'post'})
+
+/**
+ * 打开弹窗：增加自动计算剖面
+ */
+async function openPopup(routeKey) {
+  const base = routeDescMap[routeKey]
+  let profileData = null
+  let usePositions = null
+  // 根据routeKey拿到对应轨迹坐标
+  if(routeKey === 'route1') usePositions = route1Positions
+  if(routeKey === 'hiking' && hikingSegments.length>0) usePositions = hikingSegments[0]
+  if(routeKey === 'photo' && photoSegments.length>0) usePositions = photoSegments[0]
+
+  // 坐标有效，采样地形计算剖面
+  if(usePositions && usePositions.length >=2 && viewer.value){
+    try{
+      profileData = await computeElevationProfile(viewer.value, usePositions)
+    }catch(e){
+      console.error('剖面计算失败',e)
+    }
+  }
+  popupData.value = {
+    ...base,
+    profileData
+  }
   showRoutePopup.value = true
+}
+
+/**
+ * 关闭弹窗，销毁echarts实例释放内存
+ */
+function closePopup(){
+  showRoutePopup.value = false
+  popupData.value = { title:'', content:'', profileData:null }
+  if(chartInstance){
+    chartInstance.dispose()
+    chartInstance = null
+  }
 }
 
 function handleLayerToggle(layer) {
@@ -175,8 +276,8 @@ function handleLayerToggle(layer) {
 }
 
 function closeAllRoute() {
+  closePopup()
   currentRoute.value = null
-  showRoutePopup.value = false
   if (routeLineEntity) {
     viewer.value.entities.remove(routeLineEntity)
     routeLineEntity = null
@@ -200,12 +301,12 @@ function showPhotoRoute() {
 }
 
 function switchRoute(route) {
+  closePopup()
   if (hikingRouteLayer) hikingRouteLayer.show = false
   if (photoRouteLayer) photoRouteLayer.show = false
   slopeTarget.value = 'off'
   destroySlopeLayer()
   showSlopeLegend.value = false
-
   currentRoute.value = route
   if (flightInProgress && typeof flightStopCallback === 'function') {
     flightStopCallback()
@@ -240,12 +341,10 @@ async function setSlopeLayer(mode) {
   destroySlopeLayer()
   slopeTarget.value = mode
   if (mode === 'off') return
-
   let segmentList = []
   if (mode === 'route1') segmentList = [route1Positions]
   else if (mode === 'hiking') segmentList = hikingSegments
   else if (mode === 'photo') segmentList = photoSegments
-
   if (!segmentList || segmentList.length === 0) {
     alert('该路线轨迹数据尚未加载完成！')
     slopeTarget.value = 'off'
@@ -280,12 +379,11 @@ function getRoutePositions(dataSource) {
 onMounted(async () => {
   const tokenA = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiZGE3MjZkNS0xMWI4LTRkZDgtOWM3Mi0xM2IzOWY3YzVkZWQiLCJpZCI6NDYwMzg2LCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODQ5NzM3MDd9.s-BE-b8z00JBBx7UQHEfqwHsuG2gGET2FOCu-A7bF2o'
   const tokenB = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJkODliZDAyMi1mNzY2LTQwMmYtOTNjNi1lOGY5OGYzMjQ4YmUiLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODUwNjg5OTJ9.snV-HHPbKFHGnIL0nWyCtIklA8JEi9mtmVXSxxxzZKU'
-  
+
   Cesium.Ion.defaultAccessToken = tokenA
   const terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(5091409, {
     accessToken: tokenA
   })
-
   const cesiumViewer = new Cesium.Viewer('cesium-container', {
     baseLayerPicker: false,
     geocoder: false,
@@ -296,9 +394,7 @@ onMounted(async () => {
     terrainProvider: terrainProvider,
     baseLayer: Cesium.ImageryLayer.fromWorldImagery()
   })
-
   viewer.value = cesiumViewer
-
   cesiumViewer.camera.setView({
     destination: Cesium.Cartesian3.fromDegrees(115.8180, 39.6520, 1500),
     orientation: {
@@ -307,20 +403,17 @@ onMounted(async () => {
       roll: 0
     }
   })
-
   cesiumViewer.scene.globe.depthTestAgainstTerrain = true
   cesiumViewer.scene.screenSpaceCameraController.enableCollisionDetection = true
   cesiumViewer.scene.screenSpaceCameraController.minimumZoomDistance = 300
   cesiumViewer.scene.screenSpaceCameraController.maximumZoomDistance = 8000
   cesiumViewer.scene.globe.verticalExaggeration = 2.5
-
   try {
     const buildings = await Cesium.createOsmBuildingsAsync()
     cesiumViewer.scene.primitives.add(buildings)
   } catch (e) {
     console.warn('建筑加载失败', e)
   }
-
   try {
     const resource = await Cesium.IonResource.fromAssetId(5091450, { accessToken: tokenB })
     const tileset = await Cesium.Cesium3DTileset.fromUrl(resource)
@@ -328,10 +421,8 @@ onMounted(async () => {
   } catch (error) {
     console.error('3DTiles 模型加载失败:', error)
   }
-
   await initInteraction(cesiumViewer)
   await initGeoJsonLayers(cesiumViewer)
-
   async function loadRouteGeoJSON(url, name, color, type) {
     try {
       const route = await Cesium.GeoJsonDataSource.load(url, { clampToGround: true })
@@ -362,17 +453,14 @@ onMounted(async () => {
       console.error(name + '加载失败:', error)
     }
   }
-
   loadRouteGeoJSON('/data/不回头极限徒步线路.json', '不回头极限徒步线路', Cesium.Color.ORANGE.withAlpha(0.9), 'hiking')
   loadRouteGeoJSON('/data/拍照浏览景点线路.json', '拍照浏览景点线路', Cesium.Color.BLUE.withAlpha(0.9), 'photo')
-
   try {
     rawGpx1 = await Cesium.GpxDataSource.load('/data/上方山路线.gpx')
     route1Positions = getRoutePositions(rawGpx1)
   } catch (error) {
     console.error('❌ 上行路线加载失败', error)
   }
-
   if (route1Positions.length > 0) {
     routeLineEntity = cesiumViewer.entities.add({
       polyline: {
@@ -383,8 +471,14 @@ onMounted(async () => {
       }
     })
   }
-
   window.viewer = cesiumViewer
+})
+
+//组件销毁释放echarts
+onBeforeUnmount(()=>{
+  if(chartInstance){
+    chartInstance.dispose()
+  }
 })
 </script>
 
@@ -396,7 +490,6 @@ onMounted(async () => {
   padding: 0;
   overflow: hidden;
 }
-
 .control-panel,
 .layer-control-panel,
 .slope-legend {
@@ -414,32 +507,27 @@ onMounted(async () => {
     inset 0 1px 1px rgba(255, 255, 255, 0.3);
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
-
 .layer-control-panel {
   top: 20px;
   left: 20px;
   min-width: 170px;
   padding: 16px 18px;
 }
-
 .control-panel {
   top: 218px;
   left: 20px;
   min-width: 170px;
   padding: 16px 18px;
 }
-
 .slope-panel {
   top: 475px;
 }
-
 .slope-legend {
   top: 730px;
   left: 20px;
   min-width: 170px;
   padding: 14px 18px;
 }
-
 .panel-title,
 .legend-title {
   display: flex;
@@ -456,17 +544,14 @@ onMounted(async () => {
   letter-spacing: 0.5px;
   text-align: center;
 }
-
 .legend-title {
   margin: -14px -18px 12px;
 }
-
 .layer-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-
 .layer-item {
   display: flex;
   align-items: center;
@@ -475,7 +560,6 @@ onMounted(async () => {
   font-size: 14px;
   font-weight: 500;
 }
-
 .layer-item input[type='checkbox'] {
   width: 16px;
   height: 16px;
@@ -483,13 +567,11 @@ onMounted(async () => {
   cursor: pointer;
   accent-color: #d4a574;
 }
-
 .route-buttons {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-
 .route-btn {
   min-height: 38px;
   padding: 8px 14px;
@@ -502,13 +584,11 @@ onMounted(async () => {
   cursor: pointer;
   transition: all 0.25s ease;
 }
-
 .route-btn.active {
   background: rgba(212, 165, 116, 0.28);
   border-color: rgba(235, 194, 135, 0.9);
   color: #ffffff;
 }
-
 .legend-item {
   display: flex;
   align-items: center;
@@ -517,24 +597,21 @@ onMounted(async () => {
   color: rgba(255, 255, 255, 0.9);
   font-size: 14px;
 }
-
 .color-block {
   width: 20px;
   height: 10px;
   border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 4px;
 }
-
 .color-block.green { background-color: #00c800; }
 .color-block.yellow { background-color: #ffff00; }
 .color-block.red { background-color: #ff2222; }
-
 .route-intro-popup {
   position: absolute;
   z-index: 200;
   left: 220px;
   top: 220px;
-  width: 320px;
+  width: 480px;
   background: rgba(18, 18, 22, 0.45);
   backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.25);
@@ -542,7 +619,6 @@ onMounted(async () => {
   overflow: hidden;
   color: #fff;
 }
-
 .popup-header {
   display: flex;
   justify-content: space-between;
@@ -551,10 +627,26 @@ onMounted(async () => {
   background: rgba(255, 255, 255, 0.05);
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
-
 .popup-body {
   padding: 16px 18px;
   font-size: 14px;
   line-height: 1.7;
+}
+/* 剖面图样式 */
+.profile-chart{
+  margin-top:14px;
+  width:100%;
+  height:240px;
+  background:rgba(0,0,0,0.25);
+  border-radius:10px;
+}
+.popup-close{
+  cursor:pointer;
+  font-size:22px;
+  line-height:1;
+  opacity:0.75;
+}
+.popup-close:hover{
+  opacity:1;
 }
 </style>
