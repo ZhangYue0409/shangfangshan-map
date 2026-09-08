@@ -176,7 +176,17 @@ function renderProfileChart(profile){
   const seriesData = distList.map((d,i)=>[d, elevList[i]])
   const option = {
     title:{text:"路线地形剖面图", left:'center', textStyle:{color:'#fff', fontSize:13}},
-    tooltip:{trigger:'axis'},
+    tooltip:{
+  trigger:'axis',
+  backgroundColor:'rgba(0,0,0,0.7)',
+  textStyle:{color:'#fff'},
+  formatter(params) {
+    const distance = params[0].data[0];
+    const height = params[0].data[1];
+    return `行进距离：${distance.toFixed(0)} m<br/>高程：${height.toFixed(0)} m`;
+  }
+},
+
     grid:{left:50, right:10, top:35, bottom:40},
     xAxis:{
       name:"行进距离(m)",
@@ -418,35 +428,42 @@ onMounted(async () => {
   await initInteraction(cesiumViewer)
   await initGeoJsonLayers(cesiumViewer)
   async function loadRouteGeoJSON(url, name, color, type) {
-    try {
-      const route = await Cesium.GeoJsonDataSource.load(url, { clampToGround: true })
-      cesiumViewer.dataSources.add(route)
-      if (type === 'hiking' || type === 'photo') {
-        route.show = false
-      }
-      const segments = []
-      route.entities.values.forEach(entity => {
-        if (entity.polyline) {
-          entity.polyline.width = 6
-          entity.polyline.material = color
-          const cart3List = entity.polyline.positions.getValue(Cesium.JulianDate.now())
-          if (cart3List && cart3List.length >= 2) {
-            segments.push(cart3List)
-          }
-        }
-      })
-      if (type === 'hiking') {
-        hikingRouteLayer = route
-        hikingSegments = segments
-      }
-      if (type === 'photo') {
-        photoRouteLayer = route
-        photoSegments = segments
-      }
-    } catch (error) {
-      console.error(name + '加载失败:', error)
+  try {
+    const route = await Cesium.GeoJsonDataSource.load(url, { clampToGround: true })
+    cesiumViewer.dataSources.add(route)
+    if (type === 'hiking' || type === 'photo') {
+      route.show = false
     }
+
+    // 拼接GeoJSON所有LineString线段为一条完整坐标数组
+    let fullPositions = []
+    route.entities.values.forEach(entity => {
+      if (entity.polyline) {
+        entity.polyline.width = 6
+        entity.polyline.material = color
+        const cart3List = entity.polyline.positions.getValue(Cesium.JulianDate.now())
+        if (cart3List && cart3List.length >= 2) {
+          fullPositions.push(...cart3List)
+        }
+      }
+    })
+
+    // 按路线类型保存完整轨迹
+    if (type === 'hiking') {
+      hikingRouteLayer = route
+      hikingSegments = [fullPositions]
+    } else if (type === 'photo') {
+      photoRouteLayer = route
+      photoSegments = [fullPositions]
+    } else if (type === 'route1') {
+      route1Positions = fullPositions
+    }
+
+  } catch (error) {
+    console.error(name + '加载失败:', error)
   }
+}
+
   loadRouteGeoJSON('/data/不回头极限徒步线路.json', '不回头极限徒步线路', Cesium.Color.ORANGE.withAlpha(0.9), 'hiking')
   loadRouteGeoJSON('/data/拍照浏览景点线路.json', '拍照浏览景点线路', Cesium.Color.BLUE.withAlpha(0.9), 'photo')
   try {
