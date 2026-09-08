@@ -88,7 +88,7 @@ export function createSlopeLayer(viewer, gpxPositions) {
                 positions: positions,
                 colors: colors,
                 colorsPerVertex: true,
-                width: 14,
+                width: 8,
                 arcType: Cesium.ArcType.NONE
             })
             const instance = new Cesium.GeometryInstance({

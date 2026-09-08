@@ -219,7 +219,7 @@ function switchRoute(route) {
     routeLineEntity = viewer.value.entities.add({
       polyline: {
         positions: route1Positions,
-        width: 12,
+        width: 6,
         material: Cesium.Color.fromCssColorString('#D4A574').withAlpha(0.9),
         clampToGround: true
       }
@@ -342,7 +342,7 @@ onMounted(async () => {
       const segments = []
       route.entities.values.forEach(entity => {
         if (entity.polyline) {
-          entity.polyline.width = 12
+          entity.polyline.width = 6
           entity.polyline.material = color
           const cart3List = entity.polyline.positions.getValue(Cesium.JulianDate.now())
           if (cart3List && cart3List.length >= 2) {
@@ -377,7 +377,7 @@ onMounted(async () => {
     routeLineEntity = cesiumViewer.entities.add({
       polyline: {
         positions: route1Positions,
-        width: 12,
+        width:6,
         material: Cesium.Color.fromCssColorString('#D4A574').withAlpha(0.9),
         clampToGround: true
       }
