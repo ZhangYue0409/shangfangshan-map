@@ -1,32 +1,30 @@
 import * as Cesium from 'cesium'
 
-// 1. 图层配置：为 steps、cable、rest 配置专属的点颜色（color 属性），取消 icon 属性
+// 1. 图层配置：为 steps、cable、rest 配置专属的点颜色，poi 设置默认色
 export const layerConfigs = [
-  { id: 'poi', name: '景点', url: '/data/mock_poi.geojson', visible: true, dataSource: null },
+  { id: 'poi', name: '景点', url: '/data/mock_poi.geojson', visible: true, dataSource: null, color: '#FFFFFF' },
   { id: 'steps', name: '台阶', url: '/data/steps.geojson', visible: true, dataSource: null, color: '#FF9500' },
   { id: 'cable', name: '缆车', url: '/data/cable.geojson', visible: true, dataSource: null, color: '#007AFF', clampToGround: false },
   { id: 'rest', name: '休息点', url: '/data/rest.geojson', visible: true, dataSource: null, color: '#30D158' }
 ]
 
 let globalPointDataSource = null
-let defaultDotIconCache = null
-const bubbleCache = new Map() // 缓存景点带字气泡
-const circleDotCache = new Map() // 缓存带不同颜色的实心圆点图标
+const bubbleCache = new Map() // 缓存景点带名字的大气泡
+const circleDotCache = new Map() // 缓存带不同颜色的实心圆点图标（台阶、缆车、休息点）
+
+// 定义高视角下允许常显的核心景点名称
+const CORE_POI_NAMES = ['上方山国家森林公园入口', '兜率寺', '天坑']
 
 /**
  * 初始化 GeoJSON 图层
  */
 export async function initGeoJsonLayers(viewer) {
-  // 1. 强制清空旧数据源，防止热更新或多次调用导致的重复叠加
+  // 1. 强制清空旧数据源
   viewer.dataSources.removeAll()
   globalPointDataSource = new Cesium.CustomDataSource('global_points')
   await viewer.dataSources.add(globalPointDataSource)
 
-  // 关闭 Cesium 原生聚合
   globalPointDataSource.clustering.enabled = false
-
-  // 生成高视角下的默认白色小气泡图标（供景点高视角使用）
-  defaultDotIconCache = createDotCanvas()
 
   // 2. 遍历加载所有 GeoJSON 图层
   for (const layer of layerConfigs) {
@@ -40,11 +38,10 @@ export async function initGeoJsonLayers(viewer) {
         strokeWidth: 4
       })
 
-      // 如果配置了颜色，则预先动态生成并缓存该颜色的实心圆点图标
+      // 预先动态生成并缓存其他图层的实心圆点图标
       let layerCircleIcon = null
-      if (layer.color) {
+      if (layer.color && layer.id !== 'poi') {
         if (!circleDotCache.has(layer.color)) {
-          // 8 为圆点半径(px)，可根据需要自行调整大小
           circleDotCache.set(layer.color, createCircleDotCanvas(layer.color, 8))
         }
         layerCircleIcon = circleDotCache.get(layer.color)
@@ -53,7 +50,6 @@ export async function initGeoJsonLayers(viewer) {
       const pointEntitiesToRemove = []
 
       for (const entity of ds.entities.values) {
-        // --- 处理点位 ---
         if (Cesium.defined(entity.position)) {
           const poiName = entity.properties && entity.properties.name 
             ? entity.properties.name.getValue() 
@@ -63,41 +59,42 @@ export async function initGeoJsonLayers(viewer) {
 
           if (pos) {
             let targetImg = null
-            let highViewImg = null
             let verticalOrigin = Cesium.VerticalOrigin.BOTTOM
 
-            // 分支处理：如果有配置专有圆点图标（台阶、缆车、休息点）
             if (layerCircleIcon) {
+              // 台阶、缆车、休息点使用彩色实心圆点
               targetImg = layerCircleIcon
-              highViewImg = layerCircleIcon // 保持为对应的彩色实心圆点
-              verticalOrigin = Cesium.VerticalOrigin.CENTER // 实心圆点以中心对齐
+              verticalOrigin = Cesium.VerticalOrigin.CENTER 
             } else {
-              // 景点（poi）保持使用 Canvas 动态绘制的带名称文字气泡
+              // 景点（poi）一律使用带名字的白色圆角大气泡
               if (!bubbleCache.has(poiName)) {
                 bubbleCache.set(poiName, drawOriginalBubble(poiName))
               }
               targetImg = bubbleCache.get(poiName)
-              highViewImg = defaultDotIconCache // 景点在高视角下切换为默认白色气泡
-              verticalOrigin = Cesium.VerticalOrigin.BOTTOM // 气泡带尾巴，底端对齐
+              verticalOrigin = Cesium.VerticalOrigin.BOTTOM 
             }
 
-            // 创建新的点位实体并加入全局统一的数据源
+            // 计算高视角下初始显隐状态（如果是 poi 且默认是高视角，则根据是否核心景点决定初始 show）
+            const cameraHeight = viewer.camera.positionCartographic.height
+            const isCloseView = cameraHeight < 1000
+            let initialShow = layer.visible
+
+            if (layer.id === 'poi' && !isCloseView) {
+              initialShow = layer.visible && CORE_POI_NAMES.includes(poiName)
+            }
+
             const newPointEntity = globalPointDataSource.entities.add({
               name: poiName,
               position: pos,
               layerId: layer.id,
-              show: layer.visible,
+              show: initialShow,
               properties: entity.properties,
               billboard: {
                 image: targetImg,
                 verticalOrigin: verticalOrigin,
                 heightReference: isClamp ? Cesium.HeightReference.CLAMP_TO_GROUND : Cesium.HeightReference.NONE,
                 disableDepthTestDistance: Number.POSITIVE_INFINITY
-              },
-              // 保存近距离与高空视角图标以及垂直对齐方式供相机事件切换
-              _bubbleImg: targetImg,
-              _dotImg: highViewImg,
-              _verticalOrigin: verticalOrigin
+              }
             })
 
             formatEntityDescription(newPointEntity)
@@ -105,7 +102,6 @@ export async function initGeoJsonLayers(viewer) {
 
           pointEntitiesToRemove.push(entity)
         } 
-        // --- 处理线段 ---
         else if (entity.polyline && layer.color) {
           entity.polyline.material = Cesium.Color.fromCssColorString(layer.color)
           entity.polyline.width = 5
@@ -113,7 +109,6 @@ export async function initGeoJsonLayers(viewer) {
         }
       }
 
-      // 清理原始 ds 中的点，只保留线段/面
       pointEntitiesToRemove.forEach(e => ds.entities.remove(e))
 
       await viewer.dataSources.add(ds)
@@ -126,23 +121,28 @@ export async function initGeoJsonLayers(viewer) {
     }
   }
 
-  // 3. 监听相机高度按视角切换图标样式（高视角 vs 低视角）
+  // 3. 监听相机高度按视角切换“景点显隐”
   const switchThreshold = 1000
 
   const updateMarkersByDistance = () => {
     const cameraHeight = viewer.camera.positionCartographic.height
     const isCloseView = cameraHeight < switchThreshold
 
+    const parentLayer = layerConfigs.find(l => l.id === 'poi')
+    const isPoiLayerVisible = parentLayer ? parentLayer.visible : true
+
     const entities = globalPointDataSource.entities.values
     for (let i = 0; i < entities.length; i++) {
       const entity = entities[i]
-      if (entity.billboard) {
-        const targetImg = isCloseView ? entity._bubbleImg : entity._dotImg
-        
-        if (entity.billboard.image._value !== targetImg) {
-          entity.billboard.image = targetImg
-          // 低视角下如果切回景点气泡，恢复 BOTTOM，实心圆点保持在 CENTER
-          entity.billboard.verticalOrigin = isCloseView ? entity._verticalOrigin : Cesium.VerticalOrigin.BOTTOM
+      if (entity.layerId === 'poi') {
+        if (!isPoiLayerVisible) {
+          entity.show = false
+        } else if (!isCloseView) {
+          // 高视角下：只显示 3 个核心景点，隐藏其他景点
+          entity.show = CORE_POI_NAMES.includes(entity.name)
+        } else {
+          // 近视角下：显示所有景点
+          entity.show = true
         }
       }
     }
@@ -155,13 +155,11 @@ export async function initGeoJsonLayers(viewer) {
 }
 
 /**
- * 【新增函数】生成指定颜色的实心圆点 Canvas 图标（带白色描边和轻微阴影，提亮地图显示）
- * @param {string} color CSS 颜色字符串 (如 '#FF9500')
- * @param {number} radius 圆点半径 (px)
+ * 生成指定颜色的实心圆点 Canvas 图标（台阶、缆车、休息点使用）
  */
 function createCircleDotCanvas(color, radius = 8) {
   const canvas = document.createElement('canvas')
-  const padding = 4 // 阴影与描边的留白
+  const padding = 4 
   const size = (radius + padding) * 2
 
   canvas.width = size
@@ -171,18 +169,15 @@ function createCircleDotCanvas(color, radius = 8) {
   const centerX = size / 2
   const centerY = size / 2
 
-  // 1. 绘制软阴影
   ctx.shadowColor = 'rgba(0, 0, 0, 0.35)'
   ctx.shadowBlur = 4
   ctx.shadowOffsetY = 2
 
-  // 2. 绘制白色外描边
   ctx.beginPath()
   ctx.arc(centerX, centerY, radius + 1.5, 0, Math.PI * 2)
   ctx.fillStyle = '#FFFFFF'
   ctx.fill()
 
-  // 清除阴影，绘制核心实心圆
   ctx.shadowColor = 'transparent'
   ctx.beginPath()
   ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
@@ -193,7 +188,7 @@ function createCircleDotCanvas(color, radius = 8) {
 }
 
 /**
- * 绘制最原始版本的圆角气泡框 Canvas（景点近距离使用）
+ * 绘制带名字的白色圆角气泡框 Canvas（所有景点统一使用）
  */
 function drawOriginalBubble(text) {
   const canvas = document.createElement('canvas')
@@ -248,48 +243,6 @@ function drawOriginalBubble(text) {
 }
 
 /**
- * 绘制高视角下的“不带文字的白色半透明圆角气泡”图标（景点专用）
- */
-function createDotCanvas() {
-  const canvas = document.createElement('canvas')
-  const width = 28
-  const height = 20
-  const arrowHeight = 5
-
-  canvas.width = width
-  canvas.height = height + arrowHeight
-  const ctx = canvas.getContext('2d')
-
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.85)'
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.2)'
-  ctx.shadowBlur = 6
-  ctx.shadowOffsetY = 2
-
-  const x = 0.5, y = 0.5, w = width - 1, h = height - 1, r = 8
-
-  ctx.beginPath()
-  ctx.moveTo(x + r, y)
-  ctx.lineTo(x + w - r, y)
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r)
-  ctx.lineTo(x + w, y + h - r)
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
-
-  const centerX = width / 2
-  ctx.lineTo(centerX + 4, y + h)
-  ctx.lineTo(centerX, y + h + arrowHeight)
-  ctx.lineTo(centerX - 4, y + h)
-
-  ctx.lineTo(x + r, y + h)
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r)
-  ctx.lineTo(x, y + r)
-  ctx.quadraticCurveTo(x, y, x + r, y)
-  ctx.closePath()
-  ctx.fill()
-
-  return canvas.toDataURL('image/png')
-}
-
-/**
  * 控制图层显隐
  */
 export function toggleLayerVisibility(layer) {
@@ -297,9 +250,22 @@ export function toggleLayerVisibility(layer) {
     layer.dataSource.show = layer.visible
   }
   if (globalPointDataSource) {
+    const cameraHeight = window.viewer ? window.viewer.camera.positionCartographic.height : 0
+    const isCloseView = cameraHeight < 1000
+
     for (const entity of globalPointDataSource.entities.values) {
       if (entity.layerId === layer.id) {
-        entity.show = layer.visible
+        if (layer.id === 'poi') {
+          if (!layer.visible) {
+            entity.show = false
+          } else {
+            // 受视角高度和是否核心景点的约束
+            const isCorePoi = CORE_POI_NAMES.includes(entity.name)
+            entity.show = isCloseView ? true : isCorePoi
+          }
+        } else {
+          entity.show = layer.visible
+        }
       }
     }
   }

@@ -15,7 +15,8 @@
   pointer-events: auto;
   width: 460px !important;
   max-width: 90vw !important;
-  height: fit-content;            /* 移除 !important，方便 JS 动态覆盖 */
+  height: fit-content;          /* 方便 JS 动态覆盖 */
+  min-height: 220px !important; /* 🌟 新增：给纯文字或短内容弹窗一个基础的最小高度，防止显得太短 */
   max-height: 75vh !important;
   
   background: rgba(18, 18, 22, 0.35) !important;
@@ -25,7 +26,7 @@
   border-radius: 20px !important;
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.3) !important;
   overflow: hidden;
-  transition: height 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* 高度变化过渡动画 */
+  transition: height 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 /* 确保标题栏高度固定 60px */

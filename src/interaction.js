@@ -17,29 +17,32 @@ export async function initInteraction(viewer) {
       viewer.selectionIndicator.viewModel.visible = false
     }
 
-    // 🌟 【核心逻辑】监听 Cesium 选中的 Entity 变化，动态切换 InfoBox 弹窗高度
-    viewer.selectedEntityChanged.addEventListener((entity) => {
-      // 查找页面上的 cesium-infoBox 元素
-      const infoBoxElement = viewer.infoBox?.container?.querySelector('.cesium-infoBox')
-      if (!infoBoxElement) return
+  // 🌟 【核心逻辑】监听 Cesium 选中的 Entity 变化，动态切换 InfoBox 弹窗高度与最大高度
+  viewer.selectedEntityChanged.addEventListener((entity) => {
+    // 查找页面上的 cesium-infoBox 元素
+    const infoBoxElement = viewer.infoBox?.container?.querySelector('.cesium-infoBox')
+    if (!infoBoxElement) return
 
-      if (entity && entity.properties) {
-        // 1. 判断当前实体是否有图片数据
-        const props = entity.properties
-        const hasImages = (props.image_urls && props.image_urls.getValue()?.length > 0) || 
-                          (props.image_url && props.image_url.getValue())
+    if (entity && entity.properties) {
+      // 1. 判断当前实体是否有图片数据
+      const props = entity.properties
+      const hasImages = (props.image_urls && props.image_urls.getValue()?.length > 0) || 
+                        (props.image_url && props.image_url.getValue())
 
-        // 2. 有图片设为 75vh (固定最大高度)，无图片设为 fit-content (自适应包裹)
-        if (hasImages) {
-          infoBoxElement.style.setProperty('height', '75vh', 'important')
-        } else {
-          infoBoxElement.style.setProperty('height', 'fit-content', 'important')
-        }
+      // 2. 有图片设为 75vh 并限制最大高度；无图片允许 height 自适应且取消 max-height 限制以显示全部文字
+      if (hasImages) {
+        infoBoxElement.style.setProperty('height', '75vh', 'important')
+        infoBoxElement.style.setProperty('max-height', '75vh', 'important')
       } else {
-        // 未选中任何实体时恢复默认自适应
         infoBoxElement.style.setProperty('height', 'fit-content', 'important')
+        infoBoxElement.style.setProperty('max-height', 'none', 'important') // 🌟 纯文字时解除高度上限，完整展示所有内容
       }
-    })
+    } else {
+      // 未选中任何实体时恢复默认状态
+      infoBoxElement.style.setProperty('height', 'fit-content', 'important')
+      infoBoxElement.style.setProperty('max-height', '75vh', 'important')
+    }
+  })
 
     // ScreenSpaceEventHandler 点击触发选择
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas)

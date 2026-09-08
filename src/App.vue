@@ -45,6 +45,10 @@
             @change="handleLayerToggle(layer)"
           />
           <span class="checkbox-custom"></span>
+          <span 
+            class="layer-dot-legend" 
+            :style="{ backgroundColor: layer.color || '#FFFFFF' }"
+          ></span>
           <span class="layer-label-text">{{ layer.name }}</span>
         </label>
       </div>
@@ -566,6 +570,15 @@ onBeforeUnmount(()=>{
   margin-right: 9px;
   cursor: pointer;
   accent-color: #d4a574;
+}
+.layer-dot-legend {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
 }
 .route-buttons {
   display: flex;
