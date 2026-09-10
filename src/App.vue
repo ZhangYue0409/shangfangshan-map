@@ -350,6 +350,8 @@ async function setSlopeLayer(mode) {
   else if (mode === 'hiking') segmentList = hikingSegments
   else if (mode === 'photo') segmentList = photoSegments
 
+   console.log('当前路线段数量:', segmentList.length, '数据结构:', segmentList)
+   
   if (!segmentList || segmentList.length === 0) {
     alert('该路线轨迹数据尚未加载完成！')
     slopeTarget.value = 'off'
@@ -427,51 +429,54 @@ onMounted(async () => {
   }
   await initInteraction(cesiumViewer)
   await initGeoJsonLayers(cesiumViewer)
+  
+  // ✅ 修改后的 loadRouteGeoJSON
   async function loadRouteGeoJSON(url, name, color, type) {
-  try {
-    const route = await Cesium.GeoJsonDataSource.load(url, { clampToGround: true })
-    cesiumViewer.dataSources.add(route)
-    if (type === 'hiking' || type === 'photo') {
-      route.show = false
-    }
-
-    // 拼接GeoJSON所有LineString线段为一条完整坐标数组
-    let fullPositions = []
-    route.entities.values.forEach(entity => {
-      if (entity.polyline) {
-        entity.polyline.width = 6
-        entity.polyline.material = color
-        const cart3List = entity.polyline.positions.getValue(Cesium.JulianDate.now())
-        if (cart3List && cart3List.length >= 2) {
-          fullPositions.push(...cart3List)
-        }
+    try {
+      const route = await Cesium.GeoJsonDataSource.load(url, { clampToGround: true })
+      cesiumViewer.dataSources.add(route)
+      if (type === 'hiking' || type === 'photo') {
+        route.show = false
       }
-    })
 
-    // 按路线类型保存完整轨迹
-    if (type === 'hiking') {
-      hikingRouteLayer = route
-      hikingSegments = [fullPositions]
-    } else if (type === 'photo') {
-      photoRouteLayer = route
-      photoSegments = [fullPositions]
-    } else if (type === 'route1') {
-      route1Positions = fullPositions
+      let segments = [] // 改为存储独立的线段数组
+      route.entities.values.forEach(entity => {
+        if (entity.polyline) {
+          entity.polyline.width = 6
+          entity.polyline.material = color
+          const cart3List = entity.polyline.positions.getValue(Cesium.JulianDate.now())
+          if (cart3List && cart3List.length >= 2) {
+            segments.push(cart3List) // ✅ 修复：保留每段的独立性，不展开拼接
+          }
+        }
+      })
+
+      // 按路线类型保存完整轨迹
+      if (type === 'hiking') {
+        hikingRouteLayer = route
+        hikingSegments = segments // ✅ 修复：直接赋值二维数组
+      } else if (type === 'photo') {
+        photoRouteLayer = route
+        photoSegments = segments // ✅ 修复：直接赋值二维数组
+      } else if (type === 'route1') {
+        route1Positions = segments.flat() // 主路线为了后续绘制折线，暂时压平成一维
+      }
+
+    } catch (error) {
+      console.error(name + '加载失败:', error)
     }
-
-  } catch (error) {
-    console.error(name + '加载失败:', error)
   }
-}
 
   loadRouteGeoJSON('/data/不回头极限徒步线路.json', '不回头极限徒步线路', Cesium.Color.ORANGE.withAlpha(0.9), 'hiking')
   loadRouteGeoJSON('/data/拍照浏览景点线路.json', '拍照浏览景点线路', Cesium.Color.BLUE.withAlpha(0.9), 'photo')
+  
   try {
     rawGpx1 = await Cesium.GpxDataSource.load('/data/上方山路线.gpx')
     route1Positions = getRoutePositions(rawGpx1)
   } catch (error) {
     console.error('❌ 上行路线加载失败', error)
   }
+  
   if (route1Positions.length > 0) {
     routeLineEntity = cesiumViewer.entities.add({
       polyline: {
